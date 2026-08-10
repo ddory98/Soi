@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f5f4ef" />
+  <title>SOI EDITOR｜把每一次發現，編輯成一篇故事</title>
+  <meta name="description" content="為 Found by SOI 設計的雜誌式 Instagram 輪播圖文產生器。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600&family=Noto+Sans+TC:wght@300;400;500;600&family=Noto+Serif+TC:wght@500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: '#20231f',
+            paper: '#f5f4ef',
+            sage: '#8f9677',
+            mist: '#e9e7df',
+            stone: '#b8b2a6'
+          },
+          boxShadow: {
+            soft: '0 18px 60px rgba(43, 45, 38, .08)',
+            card: '0 8px 30px rgba(43, 45, 38, .07)'
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: #20231f;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(255,255,255,.95), transparent 30%),
+        linear-gradient(135deg, #f8f7f3 0%, #f2f0e9 100%);
+      font-family: Inter, "Noto Sans TC", sans-serif;
+    }
+    [v-cloak] { display: none; }
+    button, input, textarea, select { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { scrollbar-width: none; }
+    .hairline { border-color: rgba(32, 35, 31, .11); }
+    .field {
+      width: 100%;
+      border: 1px solid rgba(32,35,31,.12);
+      background: rgba(255,255,255,.76);
+      border-radius: 14px;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s, background .2s;
+    }
+    .field:focus {
+      border-color: #8f9677;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(143,150,119,.13);
+    }
+    .field::placeholder { color: #aaa79f; }
+    textarea.field { resize: vertical; min-height: 94px; line-height: 1.7; }
+    .field-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 7px;
+      color: #55584f;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .02em;
+    }
+    .switcher {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      padding: 4px;
+      border: 1px solid rgba(32,35,31,.1);
+      border-radius: 14px;
+      background: rgba(239,237,229,.85);
+    }
+    .switcher button {
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 10px;
+      color: #74766e;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 600;
+      transition: .2s ease;
+    }
+    .switcher button.active {
+      color: #20231f;
+      background: #fff;
+      box-shadow: 0 3px 12px rgba(32,35,31,.08);
+    }
+    .artboard-shell {
+      position: relative;
+      width: min(100%, 540px);
+      aspect-ratio: 4 / 5;
+      overflow: hidden;
+      background: #e5e2d9;
+      box-shadow: 0 26px 80px rgba(28,30,26,.16);
+    }
+    .artboard {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1080px;
+      height: 1350px;
+      overflow: hidden;
+      transform-origin: top left;
+      color: var(--ink, #20231f);
+      background: var(--paper, #f4f1e8);
+      font-family: Inter, "Noto Sans TC", sans-serif;
+      isolation: isolate;
+    }
+    .artboard * { box-sizing: border-box; }
+    .art-serif { font-family: "DM Serif Display", "Noto Serif TC", serif; }
+    .art-kicker {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: .19em;
+      text-transform: uppercase;
+    }
+    .art-copy { font-size: 31px; line-height: 1.78; letter-spacing: .025em; }
+    .art-small { font-size: 18px; letter-spacing: .1em; }
+    .art-rule { height: 2px; background: currentColor; opacity: .55; }
+    .image-fill { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .image-wash::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(14,16,12,.05), rgba(14,16,12,.42));
+      pointer-events: none;
+    }
+    .layout-cover .cover-title {
+      line-height: .86;
+      letter-spacing: -.052em;
+      overflow-wrap: anywhere;
+      text-wrap: balance;
+    }
+    .cover-overlay-light {
+      background:
+        linear-gradient(180deg, rgba(13,15,12,.36) 0%, rgba(13,15,12,.04) 35%, rgba(13,15,12,.12) 57%, rgba(13,15,12,.88) 100%),
+        linear-gradient(90deg, rgba(13,15,12,.16), transparent 62%);
+    }
+    .cover-overlay-dark {
+      background:
+        linear-gradient(180deg, rgba(245,243,235,.48) 0%, rgba(245,243,235,.04) 37%, rgba(245,243,235,.16) 58%, rgba(245,243,235,.93) 100%),
+        linear-gradient(90deg, rgba(245,243,235,.2), transparent 64%);
+    }
+    .cover-ui-light { color: #fffdf7; text-shadow: 0 2px 24px rgba(9,11,8,.22); }
+    .cover-ui-dark { color: #20231f; text-shadow: 0 2px 22px rgba(255,255,255,.2); }
+    .layout-cover.object .cover-title { font-family: Inter, "Noto Sans TC", sans-serif; font-weight: 600; letter-spacing: -.06em; }
+    .layout-cover.notes .cover-title { font-style: italic; }
+    .cover-star { font-family: "DM Serif Display", serif; line-height: 1; }
+    .paper-grid {
+      background-image:
+        linear-gradient(rgba(32,35,31,.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(32,35,31,.055) 1px, transparent 1px);
+      background-size: 54px 54px;
+    }
+    .thumb-active { outline: 2px solid #8f9677; outline-offset: 3px; }
+    .upload-zone.dragging { border-color: #8f9677; background: rgba(143,150,119,.08); }
+    .toast-enter-active, .toast-leave-active { transition: .25s ease; }
+    .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(12px); }
+    @media (max-width: 1023px) {
+      .preview-sticky { position: static !important; }
+    }
+    @media (max-width: 640px) {
+      .mobile-edge { margin-inline: -16px; border-radius: 0 !important; border-inline: 0 !important; }
+      .artboard-shell { width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" v-cloak>
+    <header class="sticky top-0 z-40 border-b hairline bg-[#f8f7f3]/90 backdrop-blur-xl">
+      <div class="mx-auto flex max-w-[1540px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+        <div class="flex min-w-0 items-center gap-3">
+          <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-semibold tracking-[.18em] text-white">SOI</div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <h1 class="truncate text-sm font-semibold tracking-[.11em]">SOI EDITOR</h1>
+              <span class="hidden rounded-full border hairline px-2 py-0.5 text-[9px] tracking-[.12em] text-stone sm:inline">BETA</span>
+            </div>
+            <p class="truncate text-[11px] text-[#8a8b83]">Turn every find into a story.</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="hidden items-center gap-2 text-[11px] text-[#8a8b83] md:flex">
+            <i class="h-1.5 w-1.5 rounded-full bg-[#9aa483]"></i>{{ saveStatus }}
+          </span>
+          <button @click="resetProject" class="rounded-full border hairline bg-white px-4 py-2 text-xs font-medium transition hover:bg-[#f0eee7]">重新開始</button>
+          <button @click="downloadCurrent" :disabled="exporting" class="rounded-full bg-ink px-4 py-2 text-xs font-medium text-white transition hover:bg-[#373a34] disabled:opacity-50 sm:px-5">
+            {{ exporting ? '輸出中…' : '下載圖片' }}
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-[1540px] px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+      <div class="mb-5 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p class="mb-2 text-[10px] font-semibold tracking-[.22em] text-sage">INSTAGRAM CAROUSEL MAKER</p>
+          <h2 class="font-['DM_Serif_Display'] text-3xl leading-none tracking-tight sm:text-4xl">把品牌，編輯成一篇故事。</h2>
+        </div>
+        <p class="max-w-md text-xs leading-6 text-[#74766e]">可以手動填寫，也可以讓 ChatGPT 研究後一鍵套用；不需要 API，所有編輯內容只留在妳的瀏覽器。</p>
+      </div>
+
+      <section class="grid items-start gap-5 lg:grid-cols-[minmax(360px,470px)_minmax(0,1fr)] xl:gap-7">
+        <aside class="mobile-edge overflow-hidden rounded-[26px] border hairline bg-white/75 shadow-card backdrop-blur">
+          <nav class="hide-scrollbar flex gap-1 overflow-x-auto border-b hairline p-3" aria-label="編輯步驟">
+            <button v-for="(item, index) in steps" :key="item.key" @click="activeStep=item.key"
+              class="flex min-w-fit items-center gap-2 rounded-full px-3 py-2 text-xs font-medium transition"
+              :class="activeStep===item.key ? 'bg-ink text-white' : 'text-[#7a7c73] hover:bg-mist'">
+              <span class="grid h-5 w-5 place-items-center rounded-full text-[9px]"
+                :class="activeStep===item.key ? 'bg-white/15' : 'bg-mist'">{{ index + 1 }}</span>{{ item.label }}
+            </button>
+          </nav>
+
+          <div class="max-h-none p-4 sm:p-5 lg:max-h-[calc(100vh-210px)] lg:overflow-y-auto">
+            <div v-show="activeStep==='ai'" class="space-y-5">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="mb-2 flex items-center gap-2">
+                    <span class="rounded-full bg-ink px-2.5 py-1 text-[9px] font-semibold tracking-[.12em] text-white">NO API</span>
+                    <span class="text-[10px] font-semibold tracking-[.12em] text-sage">AI QUICK START</span>
+                  </div>
+                  <h3 class="text-lg font-semibold">讓 ChatGPT 幫妳研究品牌</h3>
+                  <p class="mt-1 text-xs leading-5 text-[#85877e]">不需要 API。複製研究指令到 ChatGPT，再把結果貼回來即可。</p>
+                </div>
+                <span class="rounded-full bg-[#eff0e8] px-2.5 py-1 text-[10px] font-semibold text-[#71785f]">STEP 01</span>
+              </div>
+
+              <div class="rounded-[20px] border hairline bg-[#f6f5f0] p-4">
+                <div class="mb-4 flex items-center gap-3">
+                  <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-ink text-[10px] font-semibold text-white">1</span>
+                  <div><p class="text-xs font-semibold">輸入要介紹的品牌</p><p class="mt-0.5 text-[10px] text-[#8d8f86]">商品可以一次輸入多個，一行一項。</p></div>
+                </div>
+                <div class="space-y-4">
+                  <label class="block">
+                    <span class="field-label">品牌名稱 <em class="not-italic text-[#b36e58]">必填</em></span>
+                    <input v-model="aiInput.brand" class="field bg-white" placeholder="例如：meroware" />
+                  </label>
+                  <label class="block">
+                    <span class="field-label">商品名稱 <em class="not-italic text-[#b36e58]">必填</em></span>
+                    <textarea v-model="aiInput.products" class="field min-h-[100px] bg-white" placeholder="例如：MATT PALETTE BAG&#10;MATT MINI POUCH"></textarea>
+                  </label>
+                  <label class="block">
+                    <span class="field-label">官方網址或 Instagram <small>選填但更準確</small></span>
+                    <input v-model="aiInput.url" class="field bg-white" placeholder="https://… 或 @品牌帳號" />
+                  </label>
+                  <label class="block">
+                    <span class="field-label">文案語氣</span>
+                    <select v-model="aiInput.tone" class="field bg-white">
+                      <option value="editorial">雜誌編輯感｜有觀點、有留白</option>
+                      <option value="warm">溫柔生活感｜自然、親近</option>
+                      <option value="minimal">極簡理性感｜乾淨、精準</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div class="rounded-[20px] border hairline bg-white p-4">
+                <div class="mb-4 flex items-center gap-3">
+                  <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-sage text-[10px] font-semibold text-white">2</span>
+                  <div><p class="text-xs font-semibold">複製指令，到 ChatGPT 搜尋</p><p class="mt-0.5 text-[10px] text-[#8d8f86]">ChatGPT 會整理官方資料並輸出網站讀得懂的格式。</p></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <button @click="copyResearchPrompt" :disabled="!aiInput.brand.trim() || !aiInput.products.trim()" class="rounded-2xl bg-ink px-4 py-3 text-xs font-medium text-white transition hover:bg-[#373a34] disabled:cursor-not-allowed disabled:opacity-35">{{ promptCopied ? '✓ 指令已複製' : '複製研究指令' }}</button>
+                  <a href="https://chatgpt.com/" target="_blank" rel="noopener" class="grid place-items-center rounded-2xl border hairline bg-white px-4 py-3 text-xs font-medium transition hover:bg-mist">打開 ChatGPT ↗</a>
+                </div>
+                <details class="group mt-3 rounded-2xl bg-[#f5f4ef] p-3">
+                  <summary class="flex cursor-pointer list-none items-center justify-between text-[10px] font-semibold text-[#777970]"><span>查看將要複製的指令</span><span class="text-sm font-normal transition group-open:rotate-45">＋</span></summary>
+                  <textarea :value="researchPrompt" readonly class="mt-3 h-[180px] w-full resize-none rounded-xl border-0 bg-white p-3 text-[10px] leading-5 text-[#666961] outline-none"></textarea>
+                </details>
+              </div>
+
+              <div class="rounded-[20px] border p-4 transition" :class="aiError ? 'border-[#d9b7a9] bg-[#fff8f5]' : 'hairline bg-white'">
+                <div class="mb-4 flex items-center gap-3">
+                  <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#b4aa9c] text-[10px] font-semibold text-white">3</span>
+                  <div><p class="text-xs font-semibold">貼回 ChatGPT 的完整結果</p><p class="mt-0.5 text-[10px] text-[#8d8f86]">可以連同 ```json 標記一起貼，網站會自動整理。</p></div>
+                </div>
+                <textarea v-model="aiResult" @input="aiError=''" class="field min-h-[190px] bg-[#faf9f6] font-mono text-[10px] leading-5" placeholder='把 ChatGPT 回覆的 JSON 貼在這裡…'></textarea>
+                <p v-if="aiError" class="mt-3 rounded-xl bg-white px-3 py-2 text-[10px] leading-5 text-[#a25f4b]">{{ aiError }}</p>
+                <button @click="applyAIResult" :disabled="!aiResult.trim()" class="mt-3 w-full rounded-2xl bg-sage px-5 py-3.5 text-sm font-medium text-white transition hover:bg-[#7f866a] disabled:cursor-not-allowed disabled:opacity-35">一鍵套用文案 →</button>
+              </div>
+
+              <button @click="activeStep='brand'" class="w-full rounded-2xl border hairline bg-white px-5 py-3 text-xs font-medium transition hover:bg-mist">跳過 AI，手動填寫</button>
+            </div>
+
+            <div v-show="activeStep==='brand'" class="space-y-5">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-base font-semibold">品牌資料</h3>
+                  <p class="mt-1 text-xs leading-5 text-[#85877e]">先放入官方資料，再加上妳自己的選物觀點。</p>
+                </div>
+                <span class="rounded-full bg-[#eff0e8] px-2.5 py-1 text-[10px] font-semibold text-[#71785f]">STEP 02</span>
+              </div>
+
+              <div class="grid gap-4 sm:grid-cols-2">
+                <label>
+                  <span class="field-label">品牌名稱 <em class="not-italic text-[#b36e58]">必填</em></span>
+                  <input v-model="form.brand" @input="scheduleSave" class="field" placeholder="例如：PRACTICE OBJECTS" />
+                </label>
+                <label>
+                  <span class="field-label">來自哪裡</span>
+                  <input v-model="form.city" @input="scheduleSave" class="field" placeholder="Bangkok, Thailand" />
+                </label>
+              </div>
+              <label class="block">
+                <span class="field-label">品牌類型</span>
+                <input v-model="form.category" @input="scheduleSave" class="field" placeholder="LIFESTYLE / OBJECTS" />
+              </label>
+              <label class="block">
+                <span class="field-label">一句話介紹 <small>{{ form.tagline.length }}/80</small></span>
+                <input v-model="form.tagline" @input="scheduleSave" maxlength="80" class="field" placeholder="把曼谷的日常，收進一件件安靜的物件裡。" />
+              </label>
+              <label class="block">
+                <span class="field-label">品牌故事 <small>{{ form.story.length }}/360</small></span>
+                <textarea v-model="form.story" @input="scheduleSave" maxlength="360" class="field" placeholder="品牌從哪裡開始？在意什麼？"></textarea>
+              </label>
+              <label class="block">
+                <span class="field-label">品牌理念／設計特色</span>
+                <textarea v-model="form.philosophy" @input="scheduleSave" class="field" placeholder="材質、製作方法、核心概念或值得被看見的細節。"></textarea>
+              </label>
+              <label class="block">
+                <span class="field-label">SOI 為什麼選它</span>
+                <textarea v-model="form.reason" @input="scheduleSave" class="field" placeholder="寫下妳真正被吸引的原因，這會成為編輯選物頁。"></textarea>
+              </label>
+              <label class="block">
+                <span class="field-label">推薦單品 <small>每行一項，用｜分隔</small></span>
+                <textarea v-model="form.productsText" @input="scheduleSave" class="field min-h-[116px]" placeholder="CARRY POUCH｜輕巧、防潑水，適合日常使用&#10;SOFT TOTE｜低飽和色彩與柔軟輪廓"></textarea>
+              </label>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <label>
+                  <span class="field-label">Instagram 帳號</span>
+                  <input v-model="form.instagram" @input="scheduleSave" class="field" placeholder="@foundbysoi" />
+                </label>
+                <label>
+                  <span class="field-label">資料來源</span>
+                  <input v-model="form.source" @input="scheduleSave" class="field" placeholder="品牌官網／Instagram" />
+                </label>
+              </div>
+              <label v-if="form.references" class="block">
+                <span class="field-label">AI 查到的參考來源 <small>請在發佈前確認</small></span>
+                <textarea v-model="form.references" @input="scheduleSave" class="field min-h-[96px] text-xs" placeholder="來源名稱｜網址"></textarea>
+              </label>
+              <button @click="generateSlides(true); generateCaption(true); activeStep='media'" class="w-full rounded-2xl bg-ink px-5 py-3.5 text-sm font-medium text-white transition hover:bg-[#373a34]">
+                儲存資料，下一步 →
+              </button>
+            </div>
+
+            <div v-show="activeStep==='media'" class="space-y-5">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-base font-semibold">品牌照片</h3>
+                  <p class="mt-1 text-xs leading-5 text-[#85877e]">建議上傳 4–8 張直式或方形照片。</p>
+                </div>
+                <span class="rounded-full bg-[#eff0e8] px-2.5 py-1 text-[10px] font-semibold text-[#71785f]">STEP 03</span>
+              </div>
+
+              <label @dragover.prevent="dragging=true" @dragleave.prevent="dragging=false" @drop.prevent="onDrop"
+                class="upload-zone grid min-h-[190px] cursor-pointer place-items-center rounded-[20px] border border-dashed hairline bg-[#faf9f6] p-6 text-center transition hover:border-sage"
+                :class="{dragging}">
+                <input class="hidden" type="file" accept="image/*" multiple @change="handleFiles" />
+                <div>
+                  <div class="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-mist text-xl">＋</div>
+                  <p class="text-sm font-semibold">點擊或拖曳照片到這裡</p>
+                  <p class="mt-1 text-[11px] leading-5 text-[#92948b]">JPG、PNG、WEBP・圖片會先縮小以利編輯</p>
+                </div>
+              </label>
+
+              <div v-if="images.length" class="grid grid-cols-3 gap-3">
+                <div v-for="(photo,index) in images" :key="photo.id" class="group relative aspect-square overflow-hidden rounded-2xl bg-mist">
+                  <img :src="photo.src" :alt="photo.name" class="h-full w-full object-cover" />
+                  <span v-if="index===0" class="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[9px] font-semibold">封面</span>
+                  <div class="absolute inset-x-2 bottom-2 flex translate-y-8 gap-1 opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100">
+                    <button v-if="index!==0" @click="makeCover(index)" class="flex-1 rounded-full bg-white/90 px-2 py-1.5 text-[9px] font-semibold">設為封面</button>
+                    <button @click="removeImage(index)" class="grid h-7 w-7 place-items-center rounded-full bg-[#312f2b]/80 text-xs text-white" aria-label="刪除照片">×</button>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="rounded-2xl border hairline bg-[#f7f5ef] p-4 text-xs leading-6 text-[#777970]">
+                尚未上傳時會使用抽象示範圖，讓妳也能先試排版。照片只會保留在目前瀏覽器，不會上傳到伺服器。
+              </div>
+              <button @click="generateSlides(true); activeStep='style'" class="w-full rounded-2xl bg-ink px-5 py-3.5 text-sm font-medium text-white transition hover:bg-[#373a34]">
+                套用照片，下一步 →
+              </button>
+            </div>
+
+            <div v-show="activeStep==='style'" class="space-y-6">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-base font-semibold">版型與設定</h3>
+                  <p class="mt-1 text-xs leading-5 text-[#85877e]">建立一致識別，但保留每篇內容的呼吸感。</p>
+                </div>
+                <span class="rounded-full bg-[#eff0e8] px-2.5 py-1 text-[10px] font-semibold text-[#71785f]">STEP 04</span>
+              </div>
+
+              <div>
+                <span class="field-label">版型風格</span>
+                <div class="grid gap-3">
+                  <button v-for="theme in themes" :key="theme.key" @click="form.theme=theme.key; generateSlides(false)"
+                    class="flex items-center gap-4 rounded-[18px] border p-3 text-left transition"
+                    :class="form.theme===theme.key ? 'border-sage bg-[#f4f5ef] shadow-sm' : 'hairline bg-white hover:bg-[#faf9f6]'">
+                    <span class="relative h-16 w-14 shrink-0 overflow-hidden rounded-lg" :style="{background: theme.preview}">
+                      <i class="absolute left-2 top-2 h-1 w-6 bg-current opacity-60"></i>
+                      <i class="absolute bottom-2 left-2 h-4 w-9 border-b border-current opacity-60"></i>
+                    </span>
+                    <span class="min-w-0 flex-1">
+                      <strong class="block text-sm">{{ theme.name }}</strong>
+                      <small class="mt-1 block text-[11px] leading-5 text-[#85877e]">{{ theme.description }}</small>
+                    </span>
+                    <span class="grid h-5 w-5 place-items-center rounded-full border" :class="form.theme===theme.key ? 'border-sage bg-sage text-white' : 'hairline'">
+                      <span v-if="form.theme===theme.key" class="text-[10px]">✓</span>
+                    </span>
+                  </button>
+                </div>
+                <p class="mt-2 rounded-xl bg-[#f1f0ea] px-3 py-2 text-[10px] leading-5 text-[#777970]">三套版型的封面都會使用滿版照片，風格差異會呈現在字體與細節編排。</p>
+              </div>
+
+              <div>
+                <span class="field-label">輪播張數</span>
+                <div class="switcher">
+                  <button v-for="count in [5,7,10]" :key="count" @click="form.slideCount=count; generateSlides(true)" :class="{active:form.slideCount===count}">{{ count }} 張</button>
+                </div>
+              </div>
+              <div>
+                <span class="field-label">文字模式</span>
+                <div class="switcher">
+                  <button @click="form.language='zh'; generateSlides(false)" :class="{active:form.language==='zh'}">中文</button>
+                  <button @click="form.language='mix'; generateSlides(false)" :class="{active:form.language==='mix'}">中英混排</button>
+                  <button @click="form.language='en'; generateSlides(false)" :class="{active:form.language==='en'}">英文標示</button>
+                </div>
+                <p class="mt-2 text-[10px] leading-5 text-[#96988f]">英文模式會更換固定標示；妳輸入的品牌內容不會被自動翻譯。</p>
+              </div>
+              <div>
+                <span class="field-label">封面文字顏色 <small>依照片明暗選擇</small></span>
+                <div class="grid grid-cols-2 gap-2 rounded-[14px] border hairline bg-[#efede5]/85 p-1">
+                  <button @click="form.coverText='light'; scheduleSave()" class="min-h-[42px] rounded-[10px] text-xs font-semibold transition" :class="form.coverText!=='dark' ? 'bg-ink text-white shadow-sm' : 'text-[#74766e]'">白色文字</button>
+                  <button @click="form.coverText='dark'; scheduleSave()" class="min-h-[42px] rounded-[10px] text-xs font-semibold transition" :class="form.coverText==='dark' ? 'bg-white text-ink shadow-sm' : 'text-[#74766e]'">黑色文字</button>
+                </div>
+              </div>
+              <div>
+                <span class="field-label">品牌配色</span>
+                <div class="grid grid-cols-3 gap-3">
+                  <button v-for="palette in palettes" :key="palette.key" @click="form.palette=palette.key; scheduleSave()"
+                    class="rounded-2xl border p-2 text-left transition" :class="form.palette===palette.key ? 'border-sage bg-white shadow-sm' : 'hairline bg-white/50'">
+                    <span class="mb-2 flex h-10 overflow-hidden rounded-xl">
+                      <i class="flex-1" :style="{background:palette.paper}"></i><i class="w-4" :style="{background:palette.accent}"></i><i class="w-4" :style="{background:palette.ink}"></i>
+                    </span>
+                    <span class="block px-1 pb-1 text-[10px] font-semibold">{{ palette.name }}</span>
+                  </button>
+                </div>
+              </div>
+              <button @click="generateSlides(true); activeStep='edit'" class="w-full rounded-2xl bg-ink px-5 py-3.5 text-sm font-medium text-white transition hover:bg-[#373a34]">
+                產生 {{ form.slideCount }} 張輪播 →
+              </button>
+            </div>
+
+            <div v-show="activeStep==='edit'" class="space-y-5">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-base font-semibold">編輯目前頁面</h3>
+                  <p class="mt-1 text-xs leading-5 text-[#85877e]">第 {{ currentIndex+1 }} 張・所有文字都可以修改。</p>
+                </div>
+                <span class="rounded-full bg-[#eff0e8] px-2.5 py-1 text-[10px] font-semibold text-[#71785f]">STEP 05</span>
+              </div>
+              <template v-if="currentSlide">
+                <label class="block">
+                  <span class="field-label">頁面標示</span>
+                  <input v-model="currentSlide.kicker" @input="scheduleSave" class="field" />
+                </label>
+                <label class="block">
+                  <span class="field-label">主標題 <small>{{ currentSlide.title.length }}/90</small></span>
+                  <textarea v-model="currentSlide.title" @input="scheduleSave" maxlength="90" class="field min-h-[86px]"></textarea>
+                </label>
+                <label class="block">
+                  <span class="field-label">內文 <small>{{ currentSlide.body.length }}/360</small></span>
+                  <textarea v-model="currentSlide.body" @input="scheduleSave" maxlength="360" class="field min-h-[126px]"></textarea>
+                </label>
+                <label class="block">
+                  <span class="field-label">頁尾文字</span>
+                  <input v-model="currentSlide.footer" @input="scheduleSave" class="field" />
+                </label>
+                <label class="block">
+                  <span class="field-label">使用照片</span>
+                  <select v-model.number="currentSlide.mediaIndex" @change="scheduleSave" class="field">
+                    <option v-for="(photo,index) in availableMedia" :key="index" :value="index">照片 {{ index+1 }}{{ images.length ? '' : '（示範）' }}</option>
+                  </select>
+                </label>
+                <div class="grid grid-cols-2 gap-3">
+                  <button @click="duplicateSlide" class="rounded-2xl border hairline bg-white px-4 py-3 text-xs font-medium transition hover:bg-mist">複製這一頁</button>
+                  <button @click="deleteSlide" :disabled="slides.length<=2" class="rounded-2xl border border-[#d8c7bf] bg-[#fbf5f2] px-4 py-3 text-xs font-medium text-[#9a5f4b] transition hover:bg-[#f7ebe6] disabled:opacity-40">刪除這一頁</button>
+                </div>
+                <p class="rounded-2xl bg-[#f1f0ea] p-4 text-[11px] leading-5 text-[#777970]">下方縮圖可以拖曳排序；手機上可使用左右箭頭移動頁面。</p>
+              </template>
+              <details class="group rounded-[18px] border hairline bg-white/70 p-4">
+                <summary class="flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
+                  <span>IG 貼文文案</span><span class="text-base font-normal transition group-open:rotate-45">＋</span>
+                </summary>
+                <div class="mt-4 space-y-3">
+                  <textarea v-model="form.caption" @input="scheduleSave" class="field min-h-[220px] text-xs" placeholder="產生貼文文案…"></textarea>
+                  <div class="grid grid-cols-2 gap-3">
+                    <button @click="generateCaption(true)" class="rounded-2xl border hairline bg-white px-4 py-3 text-xs font-medium transition hover:bg-mist">重新產生</button>
+                    <button @click="copyCaption" class="rounded-2xl bg-[#eff0e8] px-4 py-3 text-xs font-medium text-[#626a52] transition hover:bg-[#e6e8dd]">複製文案</button>
+                  </div>
+                </div>
+              </details>
+              <button @click="downloadAll" :disabled="exporting" class="w-full rounded-2xl bg-ink px-5 py-3.5 text-sm font-medium text-white transition hover:bg-[#373a34] disabled:opacity-50">
+                {{ exporting ? exportMessage : `下載全部 ${slides.length} 張 ZIP` }}
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <section class="preview-sticky top-[86px] min-w-0 rounded-[28px] border hairline bg-[#e9e7df]/65 p-3 shadow-soft sm:p-5 xl:p-7">
+          <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <span class="rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold tracking-[.12em] shadow-sm">4:5 POST</span>
+              <span class="text-[11px] text-[#777970]">1080 × 1350 px</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button @click="moveSlide(-1)" :disabled="currentIndex===0" class="grid h-9 w-9 place-items-center rounded-full bg-white text-sm shadow-sm transition hover:bg-[#f7f6f1] disabled:opacity-35" aria-label="上一張">←</button>
+              <span class="min-w-[50px] text-center text-xs font-semibold">{{ String(currentIndex+1).padStart(2,'0') }} / {{ String(slides.length).padStart(2,'0') }}</span>
+              <button @click="moveSlide(1)" :disabled="currentIndex===slides.length-1" class="grid h-9 w-9 place-items-center rounded-full bg-white text-sm shadow-sm transition hover:bg-[#f7f6f1] disabled:opacity-35" aria-label="下一張">→</button>
+            </div>
+          </div>
+
+          <div class="flex justify-center">
+            <div ref="artboardShell" class="artboard-shell rounded-[4px]">
+              <div ref="artboard" class="artboard" :class="[`layout-${currentSlide.layout}`, form.theme]" :style="artboardStyle">
+                <template v-if="currentSlide.layout==='cover'">
+                  <div class="absolute inset-0 overflow-hidden">
+                    <img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌封面照片" class="image-fill" />
+                  </div>
+                  <div class="absolute inset-0" :class="form.coverText==='dark' ? 'cover-overlay-dark' : 'cover-overlay-light'"></div>
+                  <div class="absolute inset-0 z-10" :class="form.coverText==='dark' ? 'cover-ui-dark' : 'cover-ui-light'">
+                    <div class="absolute left-[64px] right-[64px] top-[58px] flex items-start justify-between border-t border-current/60 pt-5 art-small font-semibold">
+                      <span>SOI EDITOR</span>
+                      <span class="text-right leading-[1.5]">BRAND FEATURE<br>{{ pageNumber }}</span>
+                    </div>
+
+                    <div class="absolute right-[72px] top-[226px] flex items-center gap-4">
+                      <span class="cover-star text-[74px]">✦</span>
+                      <span class="max-w-[190px] text-[17px] font-semibold leading-[1.45] tracking-[.09em]">CURATED FROM<br>{{ cityShort }}</span>
+                    </div>
+
+                    <div class="absolute bottom-[80px] left-[64px] right-[64px]">
+                      <div class="mb-7 flex items-center gap-5">
+                        <span class="rounded-full border border-current/70 bg-black/5 px-6 py-3 art-small font-semibold backdrop-blur-sm">{{ currentSlide.kicker }}</span>
+                        <span class="h-px flex-1 bg-current opacity-60"></span>
+                      </div>
+                      <h3 class="cover-title art-serif max-w-[940px]" :style="{fontSize:coverFontSize+'px'}">{{ currentSlide.title }}</h3>
+                      <div class="mt-8 grid grid-cols-[1fr_auto] items-end gap-10 border-t border-current/55 pt-6">
+                        <p v-if="currentSlide.body" class="max-w-[740px] text-[27px] font-medium leading-[1.58]">{{ currentSlide.body }}</p>
+                        <p class="text-right art-small font-semibold leading-[1.55]">SWIPE TO<br>READ ↗</p>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+
+                <template v-else-if="currentSlide.layout==='intro'">
+                  <div class="absolute left-[72px] top-[70px] right-[72px] flex items-center justify-between art-small">
+                    <span>{{ currentSlide.kicker }}</span><span>{{ pageNumber }}</span>
+                  </div>
+                  <div class="absolute left-[72px] top-[155px] h-[2px] w-[936px] bg-current opacity-30"></div>
+                  <div class="absolute left-[72px] top-[215px] w-[540px]">
+                    <h3 class="art-serif text-[88px] leading-[1.03] tracking-[-.025em]">{{ currentSlide.title }}</h3>
+                    <p class="art-copy mt-12 whitespace-pre-line">{{ currentSlide.body }}</p>
+                  </div>
+                  <div class="absolute bottom-[76px] right-[66px] h-[570px] w-[350px] overflow-hidden" :class="form.theme==='notes' ? 'rotate-[2deg] shadow-[18px_20px_0_rgba(32,35,31,.10)]' : ''">
+                    <img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌照片" class="image-fill" />
+                  </div>
+                  <div class="absolute bottom-[64px] left-[72px] art-small">{{ currentSlide.footer }}</div>
+                </template>
+
+                <template v-else-if="currentSlide.layout==='quote'">
+                  <div class="absolute inset-x-[70px] top-[66px] flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>{{ pageNumber }}</span></div>
+                  <div class="absolute left-[86px] top-[254px] text-[130px] leading-none opacity-20 art-serif">“</div>
+                  <div class="absolute left-[148px] right-[126px] top-[360px]">
+                    <h3 class="art-serif text-[82px] leading-[1.22] tracking-[-.025em]">{{ currentSlide.title }}</h3>
+                    <div class="mt-14 h-[2px] w-[180px] bg-current opacity-45"></div>
+                    <p class="art-copy mt-12 max-w-[720px]">{{ currentSlide.body }}</p>
+                  </div>
+                  <div class="absolute bottom-[68px] left-[70px] right-[70px] flex justify-between art-small"><span>{{ currentSlide.footer }}</span><span>FOUND BY SOI</span></div>
+                </template>
+
+                <template v-else-if="currentSlide.layout==='details'">
+                  <div class="absolute left-0 top-0 h-[760px] w-full overflow-hidden">
+                    <img :src="mediaSource(currentSlide.mediaIndex)" alt="設計細節" class="image-fill" />
+                  </div>
+                  <div class="absolute left-[68px] top-[60px] rounded-full bg-[var(--paper)]/90 px-6 py-3 art-small">{{ currentSlide.kicker }}</div>
+                  <div class="absolute left-[68px] right-[68px] top-[815px] grid grid-cols-[1.05fr_.95fr] gap-[64px]">
+                    <h3 class="art-serif text-[74px] leading-[1.02] tracking-[-.02em]">{{ currentSlide.title }}</h3>
+                    <p class="text-[27px] leading-[1.72]">{{ currentSlide.body }}</p>
+                  </div>
+                  <div class="absolute bottom-[54px] left-[68px] right-[68px] flex justify-between border-t border-current/25 pt-5 art-small"><span>{{ currentSlide.footer }}</span><span>{{ pageNumber }}</span></div>
+                </template>
+
+                <template v-else-if="currentSlide.layout==='curation'">
+                  <div class="absolute left-[66px] top-[62px] h-[500px] w-[430px] overflow-hidden" :class="form.theme==='notes' ? '-rotate-[2deg] shadow-[16px_18px_0_rgba(32,35,31,.12)]' : ''">
+                    <img :src="mediaSource(currentSlide.mediaIndex)" alt="SOI 編輯選物" class="image-fill" />
+                  </div>
+                  <div class="absolute right-[72px] top-[66px] text-right art-small">{{ pageNumber }}<br/>EDITOR'S NOTE</div>
+                  <div class="absolute bottom-[120px] left-[70px] right-[70px]">
+                    <p class="art-kicker mb-8 text-sage">{{ currentSlide.kicker }}</p>
+                    <h3 class="art-serif max-w-[900px] text-[82px] leading-[1.02] tracking-[-.025em]">{{ currentSlide.title }}</h3>
+                    <div class="mt-11 grid grid-cols-[170px_1fr] gap-12 border-t border-current/30 pt-9">
+                      <p class="art-small leading-7">SELECTED<br/>WITH A<br/>POINT OF VIEW</p>
+                      <p class="art-copy">{{ currentSlide.body }}</p>
+                    </div>
+                  </div>
+                  <div class="absolute bottom-[50px] left-[70px] art-small">{{ currentSlide.footer }}</div>
+                </template>
+
+                <template v-else-if="currentSlide.layout==='products'">
+                  <div class="absolute left-[70px] right-[70px] top-[62px] flex items-end justify-between border-b border-current/25 pb-6">
+                    <div><p class="art-kicker">{{ currentSlide.kicker }}</p><h3 class="art-serif mt-4 text-[76px] leading-none">{{ currentSlide.title }}</h3></div>
+                    <span class="art-small">{{ pageNumber }}</span>
+                  </div>
+                  <div class="absolute left-[70px] right-[70px] top-[260px] grid grid-cols-2 gap-[26px]">
+                    <div v-for="(product,index) in productItems.slice(0,4)" :key="index" class="border-t border-current/35 pt-5">
+                      <div class="mb-5 h-[265px] overflow-hidden"><img :src="mediaSource(index+currentSlide.mediaIndex)" :alt="product.name" class="image-fill" /></div>
+                      <div class="flex gap-5"><span class="art-small">0{{ index+1 }}</span><div><h4 class="text-[25px] font-semibold tracking-[.06em]">{{ product.name }}</h4><p class="mt-3 text-[20px] leading-[1.55] opacity-75">{{ product.description }}</p></div></div>
+                    </div>
+                  </div>
+                  <p v-if="currentSlide.body" class="absolute bottom-[66px] left-[70px] max-w-[720px] text-[22px] leading-[1.6]">{{ currentSlide.body }}</p>
+                  <div class="absolute bottom-[52px] right-[70px] art-small">{{ currentSlide.footer }}</div>
+                </template>
+
+                <template v-else-if="currentSlide.layout==='split'">
+                  <div class="absolute left-0 top-0 h-full w-[46%] overflow-hidden"><img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌情境" class="image-fill" /></div>
+                  <div class="absolute left-[52%] right-[68px] top-[72px] art-small flex justify-between"><span>{{ currentSlide.kicker }}</span><span>{{ pageNumber }}</span></div>
+                  <div class="absolute left-[52%] right-[74px] top-[280px]">
+                    <h3 class="art-serif text-[78px] leading-[1.05]">{{ currentSlide.title }}</h3>
+                    <p class="art-copy mt-12 whitespace-pre-line">{{ currentSlide.body }}</p>
+                  </div>
+                  <div class="absolute bottom-[65px] left-[52%] right-[68px] border-t border-current/25 pt-5 art-small">{{ currentSlide.footer }}</div>
+                </template>
+
+                <template v-else-if="currentSlide.layout==='closing'">
+                  <div class="absolute inset-0 overflow-hidden image-wash"><img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌結尾" class="image-fill" /></div>
+                  <div class="absolute inset-0 z-10 flex flex-col justify-between p-[70px] text-white">
+                    <div class="flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>{{ pageNumber }}</span></div>
+                    <div>
+                      <h3 class="art-serif max-w-[900px] text-[104px] leading-[.98] tracking-[-.03em]">{{ currentSlide.title }}</h3>
+                      <p class="mt-10 max-w-[760px] text-[30px] leading-[1.7]">{{ currentSlide.body }}</p>
+                    </div>
+                    <div class="flex justify-between border-t border-white/40 pt-5 art-small"><span>{{ currentSlide.footer }}</span><span>SOI / BANGKOK</span></div>
+                  </div>
+                </template>
+
+                <template v-else>
+                  <div class="absolute inset-0" :class="form.theme==='notes' ? 'paper-grid' : ''"></div>
+                  <div class="absolute left-[70px] top-[68px] right-[70px] flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>{{ pageNumber }}</span></div>
+                  <div class="absolute left-[70px] right-[70px] top-[315px] text-center">
+                    <p class="mb-8 text-[25px] tracking-[.22em] opacity-70">FOUND IN BANGKOK</p>
+                    <h3 class="whitespace-pre-line art-serif text-[105px] leading-[.98] tracking-[-.035em]">{{ currentSlide.title }}</h3>
+                    <p class="mx-auto mt-11 max-w-[740px] text-[30px] leading-[1.7]">{{ currentSlide.body }}</p>
+                    <div class="mx-auto mt-14 h-[82px] w-px bg-current opacity-40"></div>
+                    <p class="mt-8 text-[23px] font-semibold tracking-[.16em]">{{ form.instagram || '@foundbysoi' }}</p>
+                  </div>
+                  <div class="absolute bottom-[58px] left-[70px] right-[70px] flex justify-between border-t border-current/30 pt-5 art-small"><span>{{ currentSlide.footer }}</span><span>CURATED FROM BANGKOK.</span></div>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5">
+            <div class="mb-3 flex items-center justify-between gap-3">
+              <p class="text-[11px] font-semibold tracking-[.1em]">頁面順序</p>
+              <p class="text-[10px] text-[#86887f]">拖曳縮圖調整</p>
+            </div>
+            <div class="hide-scrollbar flex gap-3 overflow-x-auto px-1 pb-3 pt-1">
+              <button v-for="(slide,index) in slides" :key="slide.id" draggable="true" @dragstart="dragSlideIndex=index" @dragover.prevent @drop="dropSlide(index)" @click="currentIndex=index; activeStep='edit'"
+                class="group relative shrink-0 rounded-xl bg-white p-1.5 text-left shadow-sm transition hover:-translate-y-0.5"
+                :class="{'thumb-active':currentIndex===index}">
+                <span class="relative block h-[94px] w-[75px] overflow-hidden rounded-lg" :style="{background:selectedPalette.paper}">
+                  <template v-if="slide.layout==='cover'">
+                    <img :src="mediaSource(slide.mediaIndex)" alt="" class="h-full w-full object-cover" />
+                    <i class="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/10"></i>
+                    <span class="absolute inset-x-2 bottom-2 text-[6px] font-semibold uppercase leading-tight text-white">{{ slide.title.slice(0,34) }}</span>
+                  </template>
+                  <template v-else>
+                    <img v-if="['intro','details','curation','split','closing'].includes(slide.layout)" :src="mediaSource(slide.mediaIndex)" alt="" class="h-[58%] w-full object-cover" />
+                    <span class="block px-2 pt-2 text-[6px] font-semibold uppercase leading-tight" :style="{color:selectedPalette.ink}">{{ slide.title.slice(0,34) }}</span>
+                  </template>
+                </span>
+                <span class="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-ink text-[8px] text-white">{{ index+1 }}</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <transition name="toast">
+      <div v-if="toast" class="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-full bg-ink px-5 py-3 text-xs font-medium text-white shadow-2xl">{{ toast }}</div>
+    </transition>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, computed, watch, onMounted, nextTick } = Vue;
+
+    createApp({
+      setup() {
+        const steps = [
+          { key: 'ai', label: 'AI 文案' },
+          { key: 'brand', label: '品牌' },
+          { key: 'media', label: '照片' },
+          { key: 'style', label: '版型' },
+          { key: 'edit', label: '編輯' }
+        ];
+        const themes = [
+          { key: 'editorial', name: 'EDITORIAL', description: '大量留白與大字標題，像獨立生活雜誌。', preview: 'linear-gradient(135deg,#f0ece1 0 55%,#9aa083 55%)' },
+          { key: 'object', name: 'OBJECT', description: '清楚、理性、聚焦商品與設計細節。', preview: 'linear-gradient(180deg,#d8d4ca 0 58%,#ffffff 58%)' },
+          { key: 'notes', name: 'BANGKOK NOTES', description: '帶一點城市採集、手記與紙張感。', preview: 'linear-gradient(115deg,#ded4c4 0 48%,#9e8068 48%)' }
+        ];
+        const palettes = [
+          { key: 'cream', name: 'Cream / Olive', paper: '#f2efe5', ink: '#22251f', accent: '#8f9677' },
+          { key: 'stone', name: 'Stone / Silver', paper: '#ecebe7', ink: '#292b29', accent: '#a5a5a0' },
+          { key: 'sand', name: 'Sand / Taupe', paper: '#e8dfd2', ink: '#302c27', accent: '#9b806d' }
+        ];
+
+        const defaultForm = () => ({
+          brand: 'PRACTICE OBJECTS',
+          city: 'Bangkok, Thailand',
+          category: 'LIFESTYLE / OBJECTS',
+          tagline: '把曼谷的日常，收進一件件安靜的物件裡。',
+          story: '從對日常器物的觀察出發，品牌相信真正耐看的設計，不需要急著說服誰。簡單的輪廓、舒服的觸感，以及能長久陪伴生活的功能，是每件作品共同的語言。',
+          philosophy: '低飽和色彩、柔和輪廓與實用結構，讓物件自然融入每一種生活。設計保留材質原本的表情，也在細節裡留下手作的溫度。',
+          reason: '我們喜歡它沒有刻意討好的樣子。拿在手上很輕，放進日常卻很有存在感；那種安靜、耐看、使用後才慢慢理解的細節，就是 SOI 想帶回來的曼谷。',
+          productsText: 'CARRY POUCH｜輕巧、防潑水，適合收好每天的小東西\nSOFT TOTE｜低飽和色彩與柔軟輪廓\nDAILY TRAY｜把桌面日常整理得剛剛好\nMINI CASE｜簡單收納，也是一件耐看的物件',
+          instagram: '@foundbysoi',
+          source: 'BRAND OFFICIAL / SOI EDIT',
+          references: '',
+          caption: '',
+          theme: 'editorial',
+          palette: 'cream',
+          coverText: 'light',
+          language: 'mix',
+          slideCount: 7
+        });
+
+        const form = reactive(defaultForm());
+        const activeStep = ref('ai');
+        const aiInput = reactive({ brand:'', products:'', url:'', tone:'editorial' });
+        const aiResult = ref('');
+        const aiError = ref('');
+        const promptCopied = ref(false);
+        const images = ref([]);
+        const slides = ref([]);
+        const currentIndex = ref(0);
+        const dragSlideIndex = ref(null);
+        const dragging = ref(false);
+        const exporting = ref(false);
+        const exportMessage = ref('準備圖片中…');
+        const toast = ref('');
+        const saveStatus = ref('內容已儲存在這台裝置');
+        const artboard = ref(null);
+        const artboardShell = ref(null);
+        const previewScale = ref(.5);
+        let toastTimer;
+        let saveTimer;
+
+        const makeDemoSvg = (start, end, shape, label) => {
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1500" viewBox="0 0 1200 1500"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${start}"/><stop offset="1" stop-color="${end}"/></linearGradient><filter id="n"><feTurbulence baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .05"/></feComponentTransfer></filter></defs><rect width="1200" height="1500" fill="url(#g)"/><rect width="1200" height="1500" filter="url(#n)" opacity=".55"/><${shape}/><text x="70" y="1425" fill="rgba(255,255,255,.68)" font-family="Arial" font-size="22" letter-spacing="8">${label}</text></svg>`;
+          return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+        };
+        const demoImages = [
+          makeDemoSvg('#c7c0ad', '#737b64', 'ellipse cx="730" cy="590" rx="310" ry="430" fill="rgba(242,237,224,.52)" transform="rotate(-18 730 590)"', 'SOI / DEMO IMAGE 01'),
+          makeDemoSvg('#dfd8ca', '#988d7b', 'rect x="185" y="270" width="780" height="920" rx="360" fill="rgba(245,242,232,.48)" transform="rotate(8 575 730)"', 'SOI / DEMO IMAGE 02'),
+          makeDemoSvg('#a8ad92', '#555c4e', 'circle cx="430" cy="590" r="330" fill="rgba(232,226,210,.48)"/><circle cx="860" cy="970" r="250" fill="rgba(35,39,32,.18)"', 'SOI / DEMO IMAGE 03'),
+          makeDemoSvg('#d2c2b1', '#847565', 'path d="M190 1160 C280 380 820 250 1030 930 C900 1150 590 1280 190 1160Z" fill="rgba(244,238,224,.45)"', 'SOI / DEMO IMAGE 04')
+        ];
+
+        const selectedPalette = computed(() => palettes.find(p => p.key === form.palette) || palettes[0]);
+        const artboardStyle = computed(() => ({
+          '--paper': selectedPalette.value.paper,
+          '--ink': selectedPalette.value.ink,
+          '--accent': selectedPalette.value.accent,
+          transform: `scale(${previewScale.value})`
+        }));
+        const currentSlide = computed(() => slides.value[currentIndex.value] || { layout:'cta', kicker:'', title:'', body:'', footer:'', mediaIndex:0 });
+        const coverFontSize = computed(() => {
+          const length = [...(currentSlide.value.title || '')].length;
+          if (length <= 10) return 164;
+          if (length <= 16) return 142;
+          if (length <= 24) return 118;
+          if (length <= 32) return 98;
+          return 80;
+        });
+        const pageNumber = computed(() => `${String(currentIndex.value + 1).padStart(2,'0')} / ${String(slides.value.length).padStart(2,'0')}`);
+        const cityShort = computed(() => (form.city || 'BANGKOK').split(',')[0].toUpperCase());
+        const availableMedia = computed(() => images.value.length ? images.value : demoImages.map((src,index)=>({src,name:`示範圖 ${index+1}`})));
+        const productItems = computed(() => {
+          const parsed = (form.productsText || '').split('\n').filter(Boolean).map(line => {
+            const [name, ...rest] = line.split(/[｜|]/);
+            return { name: (name || 'SELECTED ITEM').trim(), description: (rest.join('｜') || 'SOI selected object.').trim() };
+          });
+          return parsed.length ? parsed : [{name:'SELECTED ITEM',description:'SOI selected object.'}];
+        });
+        const researchPrompt = computed(() => {
+          const toneMap = {
+            editorial: '獨立生活雜誌的編輯語氣：有觀點、有留白，不像購物台，也不要過度煽情',
+            warm: '溫柔自然的生活選物語氣：親近、好讀，但不使用浮誇銷售字眼',
+            minimal: '極簡理性的編輯語氣：短句、精準、重視設計與使用細節'
+          };
+          return `你是台灣生活選物品牌 Found by SOI 的內容編輯。請先使用網路搜尋，研究以下品牌與商品，然後撰寫可直接放進 Instagram 雜誌式輪播的繁體中文文案。
+
+【研究對象】
+品牌名稱：${aiInput.brand || '（尚未填寫）'}
+商品名稱：
+${aiInput.products || '（尚未填寫）'}
+官方網址或 Instagram：${aiInput.url || '未提供，請搜尋並確認同名品牌'}
+
+【資料規則】
+1. 優先使用品牌官網、品牌官方 Instagram、正式採訪或可信零售通路。
+2. 如果有同名品牌，必須確認品牌、國家與商品彼此吻合；無法確認時要明確寫「未找到可靠資料」。
+3. 不得捏造成立年份、創辦人、產地、材質、尺寸、功能、永續宣稱或使用心得。
+4. 把可驗證的事實與編輯式形容分開。SOI 選物理由可以寫成草稿，但不要假裝實際使用過。
+5. 全文使用繁體中文，品牌名與產品名保留原文。
+6. 文案語氣：${toneMap[aiInput.tone] || toneMap.editorial}。
+7. 不要寫成泰國代購帳號；要像生活風格雜誌介紹一個值得認識的品牌。
+
+【輸出要求】
+只輸出一個合法 JSON 物件，不要加 Markdown、不要使用三個反引號、不要補充說明。所有欄位都必須存在；沒有資料時使用空字串或空陣列。
+
+{
+  "brand": "品牌正式名稱",
+  "city": "城市, 國家",
+  "category": "英文分類，例如 LIFESTYLE / BAGS",
+  "tagline": "80 字內的一句話品牌介紹",
+  "story": "180 至 260 字的品牌故事，只寫可驗證內容",
+  "philosophy": "120 至 220 字的設計理念、材質或特色",
+  "reason": "100 至 180 字的 SOI 選物理由草稿",
+  "products": [
+    {"name": "商品正式名稱", "description": "40 至 80 字、只包含可驗證特色"}
+  ],
+  "source_label": "適合放在版面頁尾的短來源標示",
+  "sources": [
+    {"title": "來源名稱", "url": "完整網址"}
+  ],
+  "caption": "完整 IG 貼文文案，包含自然分段、結尾引導與 5 至 8 個相關 hashtag"
+}`;
+        });
+
+        const labels = computed(() => {
+          if (form.language === 'zh') return { cover:'本期選物', story:'品牌故事', quote:'品牌理念', details:'設計細節', curation:'選物筆記', products:'推薦單品', city:'曼谷來信', closing:'帶回日常', cta:'繼續探索' };
+          if (form.language === 'en') return { cover:'BRAND FEATURE', story:'THE STORY', quote:'POINT OF VIEW', details:'DESIGN DETAILS', curation:'WHY WE PICKED IT', products:'SELECTED ITEMS', city:'BANGKOK NOTE', closing:'BRING IT HOME', cta:'DISCOVER MORE' };
+          return { cover:'BRAND FEATURE', story:'品牌故事 / THE STORY', quote:'POINT OF VIEW', details:'設計細節 / DETAILS', curation:'SOI 選物筆記', products:'SELECTED ITEMS', city:'BANGKOK NOTE', closing:'BRING IT HOME', cta:'DISCOVER MORE' };
+        });
+
+        function slidePool() {
+          const brand = form.brand || 'YOUR BRAND';
+          const storyTitle = form.language === 'en' ? 'A quiet point of view, made for everyday life.' : '從日常出發，讓設計安靜地留在生活裡。';
+          const quoteTitle = form.tagline || '好的物件，不急著被看見。';
+          const detailsTitle = form.language === 'en' ? 'Details that reveal themselves over time.' : '真正耐看的細節，會在使用之後慢慢出現。';
+          const reasonTitle = form.language === 'en' ? 'Why it belongs in our edit.' : '不只因為好看，更因為它值得留在日常。';
+          return [
+            { id: crypto.randomUUID(), layout:'cover', kicker:`${labels.value.cover} / ${form.category}`, title:brand, body:form.tagline, footer:form.city || 'BANGKOK, THAILAND', mediaIndex:0 },
+            { id: crypto.randomUUID(), layout:'intro', kicker:labels.value.story, title:storyTitle, body:form.story, footer:form.source || 'BRAND OFFICIAL / SOI EDIT', mediaIndex:1 },
+            { id: crypto.randomUUID(), layout:'quote', kicker:labels.value.quote, title:quoteTitle, body:form.philosophy, footer:brand, mediaIndex:2 },
+            { id: crypto.randomUUID(), layout:'details', kicker:labels.value.details, title:detailsTitle, body:form.philosophy, footer:'FORM / MATERIAL / EVERYDAY', mediaIndex:2 },
+            { id: crypto.randomUUID(), layout:'curation', kicker:labels.value.curation, title:reasonTitle, body:form.reason, footer:`SELECTED BY SOI · ${cityShort.value}`, mediaIndex:3 },
+            { id: crypto.randomUUID(), layout:'products', kicker:labels.value.products, title:'The SOI Selection', body:'選擇真正會被使用、也值得被長久留下的單品。', footer:brand, mediaIndex:0 },
+            { id: crypto.randomUUID(), layout:'split', kicker:labels.value.city, title:`Found in ${cityShort.value}.`, body:`我們在城市裡尋找的不只是紀念品，\n而是能把一段故事帶回家的物件。`, footer:'CURATED FROM BANGKOK.', mediaIndex:1 },
+            { id: crypto.randomUUID(), layout:'details', kicker:'IN USE / 08', title:'Made to live with you.', body:'真正好的設計，會自然融入每天的動作。從觸感、重量到收納方式，每一處都剛剛好。', footer:'EVERYDAY OBJECTS', mediaIndex:3 },
+            { id: crypto.randomUUID(), layout:'closing', kicker:labels.value.closing, title:'Take a piece of Bangkok home.', body:'不是把旅行打包，而是把一種生活方式帶回來。', footer:brand, mediaIndex:0 },
+            { id: crypto.randomUUID(), layout:'cta', kicker:labels.value.cta, title:'Found by SOI.\nShared with You.', body:'跟著 SOI，繼續發現來自曼谷的品牌、物件與日常故事。', footer:'FIND MORE THAN SOUVENIRS.', mediaIndex:0 }
+          ];
+        }
+
+        function generateSlides(resetContent = true) {
+          if (!resetContent && slides.value.length) { scheduleSave(); return; }
+          const pool = slidePool();
+          const count = Number(form.slideCount);
+          let chosen;
+          if (count === 5) chosen = [pool[0], pool[1], pool[2], pool[4], pool[9]];
+          else if (count === 7) chosen = [pool[0], pool[1], pool[2], pool[3], pool[4], pool[5], pool[9]];
+          else chosen = pool;
+          slides.value = chosen;
+          currentIndex.value = Math.min(currentIndex.value, chosen.length - 1);
+          scheduleSave();
+        }
+
+        function generateCaption(force = false) {
+          if (form.caption && !force) return;
+          const account = form.instagram || '@foundbysoi';
+          form.caption = `${form.brand || 'SOI BRAND FEATURE'}｜${form.tagline || '一個值得被帶回日常的品牌。'}\n\n${form.story || ''}\n\n為什麼 SOI 選它？\n${form.reason || ''}\n\n這次的選物，想把來自 ${form.city || 'Bangkok'} 的生活觀點分享給你。\n\n${account}\n\n#FoundbySOI #SOISelect #BangkokDesign #泰國選物 #生活選物`;
+          scheduleSave();
+        }
+
+        async function copyCaption() {
+          if (!form.caption) generateCaption(true);
+          try { await navigator.clipboard.writeText(form.caption); showToast('貼文文案已複製'); }
+          catch (e) { showToast('請長按文案手動複製'); }
+        }
+
+        async function copyText(text) {
+          try {
+            await navigator.clipboard.writeText(text);
+            return true;
+          } catch (e) {
+            try {
+              const area = document.createElement('textarea');
+              area.value = text;
+              area.setAttribute('readonly','');
+              area.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+              document.body.appendChild(area);
+              area.select();
+              const copied = document.execCommand('copy');
+              area.remove();
+              return copied;
+            } catch (fallbackError) { return false; }
+          }
+        }
+
+        async function copyResearchPrompt() {
+          if (!aiInput.brand.trim() || !aiInput.products.trim()) {
+            showToast('請先輸入品牌與商品名稱');
+            return;
+          }
+          const copied = await copyText(researchPrompt.value);
+          if (copied) {
+            promptCopied.value = true;
+            showToast('研究指令已複製');
+            setTimeout(()=>promptCopied.value=false,2400);
+          } else showToast('請展開指令後手動複製');
+        }
+
+        function parseAIJson(raw) {
+          let candidate = String(raw || '').trim();
+          const fenced = candidate.match(/```(?:json)?\s*([\s\S]*?)```/i);
+          if (fenced) candidate = fenced[1].trim();
+          const start = candidate.indexOf('{');
+          const end = candidate.lastIndexOf('}');
+          if (start < 0 || end <= start) throw new Error('找不到 JSON 內容');
+          candidate = candidate.slice(start,end+1);
+          try { return JSON.parse(candidate); }
+          catch (firstError) {
+            const repaired = candidate
+              .replace(/[“”]/g,'"')
+              .replace(/[‘’]/g,"'")
+              .replace(/,\s*([}\]])/g,'$1');
+            return JSON.parse(repaired);
+          }
+        }
+
+        function applyAIResult() {
+          aiError.value = '';
+          try {
+            const data = parseAIJson(aiResult.value);
+            const asText = value => typeof value === 'string' ? value.trim() : '';
+            const products = Array.isArray(data.products) ? data.products.map(item => {
+              if (typeof item === 'string') return item.trim();
+              const name = asText(item?.name) || 'SELECTED ITEM';
+              const description = asText(item?.description);
+              return description ? `${name}｜${description}` : name;
+            }).filter(Boolean) : [];
+            const sources = Array.isArray(data.sources) ? data.sources.map(source => {
+              if (typeof source === 'string') return source.trim();
+              const title = asText(source?.title);
+              const url = asText(source?.url);
+              return [title,url].filter(Boolean).join('｜');
+            }).filter(Boolean) : [];
+
+            Object.assign(form, {
+              brand: asText(data.brand) || aiInput.brand.trim() || form.brand,
+              city: asText(data.city) || form.city,
+              category: asText(data.category) || form.category,
+              tagline: asText(data.tagline) || form.tagline,
+              story: asText(data.story) || form.story,
+              philosophy: asText(data.philosophy) || form.philosophy,
+              reason: asText(data.reason) || form.reason,
+              productsText: products.length ? products.join('\n') : form.productsText,
+              source: asText(data.source_label) || 'BRAND OFFICIAL / SOI EDIT',
+              references: sources.join('\n'),
+              caption: asText(data.caption)
+            });
+            if (!form.caption) generateCaption(true);
+            generateSlides(true);
+            currentIndex.value = 0;
+            activeStep.value = 'brand';
+            scheduleSave();
+            showToast('AI 文案已套用，可以開始微調');
+          } catch (error) {
+            console.warn('AI result parse failed',error);
+            aiError.value = '無法讀取這段內容。請確認有貼到完整 JSON；也可以回到 ChatGPT 說：「請只重新輸出合法 JSON，不要加入其他文字」。';
+          }
+        }
+
+        function mediaSource(index = 0) {
+          const list = images.value.length ? images.value.map(i=>i.src) : demoImages;
+          return list[Math.abs(Number(index || 0)) % list.length];
+        }
+
+        async function compressImage(file) {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = reject;
+            reader.onload = () => {
+              const img = new Image();
+              img.onerror = reject;
+              img.onload = () => {
+                const max = 1800;
+                const scale = Math.min(1, max / Math.max(img.width, img.height));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(img.width * scale);
+                canvas.height = Math.round(img.height * scale);
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#f5f4ef';
+                ctx.fillRect(0,0,canvas.width,canvas.height);
+                ctx.drawImage(img,0,0,canvas.width,canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', .9));
+              };
+              img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+          });
+        }
+
+        async function addFiles(fileList) {
+          const files = Array.from(fileList || []).filter(f=>f.type.startsWith('image/')).slice(0, Math.max(0, 10-images.value.length));
+          if (!files.length) return;
+          showToast('正在整理照片…');
+          for (const file of files) {
+            try { images.value.push({ id:crypto.randomUUID(), name:file.name, src:await compressImage(file) }); }
+            catch (e) { console.warn('Unable to read image', e); }
+          }
+          generateSlides(false);
+          showToast(`已加入 ${files.length} 張照片`);
+        }
+        function handleFiles(event) { addFiles(event.target.files); event.target.value=''; }
+        function onDrop(event) { dragging.value=false; addFiles(event.dataTransfer.files); }
+        function removeImage(index) { images.value.splice(index,1); generateSlides(false); showToast('照片已移除'); }
+        function makeCover(index) { const [photo]=images.value.splice(index,1); images.value.unshift(photo); generateSlides(false); showToast('已設為封面照片'); }
+
+        function moveSlide(direction) {
+          currentIndex.value = Math.max(0, Math.min(slides.value.length-1, currentIndex.value + direction));
+        }
+        function dropSlide(targetIndex) {
+          if (dragSlideIndex.value === null || dragSlideIndex.value === targetIndex) return;
+          const [moved] = slides.value.splice(dragSlideIndex.value,1);
+          slides.value.splice(targetIndex,0,moved);
+          currentIndex.value = targetIndex;
+          dragSlideIndex.value = null;
+          scheduleSave();
+        }
+        function duplicateSlide() {
+          const copy = JSON.parse(JSON.stringify(currentSlide.value));
+          copy.id = crypto.randomUUID();
+          slides.value.splice(currentIndex.value+1,0,copy);
+          currentIndex.value += 1;
+          scheduleSave(); showToast('已複製頁面');
+        }
+        function deleteSlide() {
+          if (slides.value.length <= 2) return;
+          slides.value.splice(currentIndex.value,1);
+          currentIndex.value = Math.min(currentIndex.value,slides.value.length-1);
+          scheduleSave(); showToast('頁面已刪除');
+        }
+
+        async function renderCurrent() {
+          await nextTick();
+          if (document.fonts?.ready) await document.fonts.ready;
+          return htmlToImage.toPng(artboard.value, {
+            width: 1080,
+            height: 1350,
+            pixelRatio: 1,
+            cacheBust: true,
+            backgroundColor: selectedPalette.value.paper,
+            style: { transform: 'none', transformOrigin: 'top left' }
+          });
+        }
+        function safeName(value) { return (value || 'soi-brand').toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/gi,'-').replace(/^-|-$/g,'').slice(0,40) || 'soi-brand'; }
+        function downloadDataUrl(dataUrl, filename) {
+          const link = document.createElement('a'); link.download=filename; link.href=dataUrl; link.click();
+        }
+        async function downloadCurrent() {
+          if (exporting.value) return;
+          exporting.value=true;
+          try {
+            const dataUrl = await renderCurrent();
+            downloadDataUrl(dataUrl, `${safeName(form.brand)}-${String(currentIndex.value+1).padStart(2,'0')}.png`);
+            showToast('圖片已下載');
+          } catch (e) { console.error(e); showToast('輸出失敗，請稍後再試'); }
+          finally { exporting.value=false; }
+        }
+        async function downloadAll() {
+          if (exporting.value) return;
+          exporting.value=true;
+          const original = currentIndex.value;
+          try {
+            const zip = new JSZip();
+            for (let i=0;i<slides.value.length;i++) {
+              currentIndex.value=i;
+              exportMessage.value=`正在輸出 ${i+1} / ${slides.value.length}…`;
+              await nextTick(); await new Promise(r=>setTimeout(r,80));
+              const dataUrl=await renderCurrent();
+              zip.file(`${safeName(form.brand)}-${String(i+1).padStart(2,'0')}.png`, dataUrl.split(',')[1], {base64:true});
+            }
+            exportMessage.value='正在打包 ZIP…';
+            const blob=await zip.generateAsync({type:'blob'});
+            const url=URL.createObjectURL(blob); downloadDataUrl(url,`${safeName(form.brand)}-carousel.zip`); setTimeout(()=>URL.revokeObjectURL(url),1000);
+            showToast(`已下載 ${slides.value.length} 張圖片`);
+          } catch(e) { console.error(e); showToast('批次輸出失敗，請改用單張下載'); }
+          finally { currentIndex.value=original; exporting.value=false; exportMessage.value='準備圖片中…'; }
+        }
+
+        function showToast(message) { toast.value=message; clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.value='',2200); }
+        function scheduleSave() {
+          saveStatus.value='儲存中…'; clearTimeout(saveTimer);
+          saveTimer=setTimeout(()=>{
+            try {
+              localStorage.setItem('soi-editor-project',JSON.stringify({form:{...form},slides:slides.value}));
+              saveStatus.value='內容已儲存在這台裝置';
+            } catch(e) { saveStatus.value='內容已更新'; }
+          },450);
+        }
+        function loadSaved() {
+          try {
+            const saved=JSON.parse(localStorage.getItem('soi-editor-project'));
+            if (!saved) return false;
+            Object.assign(form,saved.form||{});
+            if (Array.isArray(saved.slides)&&saved.slides.length) slides.value=saved.slides;
+            return true;
+          } catch(e) { return false; }
+        }
+        function resetProject() {
+          if (!confirm('要清除目前內容並回到示範專案嗎？')) return;
+          Object.assign(form,defaultForm()); Object.assign(aiInput,{brand:'',products:'',url:'',tone:'editorial'}); aiResult.value=''; aiError.value=''; images.value=[]; currentIndex.value=0; activeStep.value='ai'; generateSlides(true); generateCaption(true); showToast('已建立新的空白專案');
+        }
+        function updateScale() {
+          if (artboardShell.value) previewScale.value=artboardShell.value.clientWidth/1080;
+        }
+
+        watch([()=>form.palette,()=>form.theme],scheduleSave);
+        onMounted(()=>{
+          if (!loadSaved() || !slides.value.length) generateSlides(true);
+          generateCaption(false);
+          updateScale();
+          const observer=new ResizeObserver(updateScale); if (artboardShell.value) observer.observe(artboardShell.value);
+          window.addEventListener('resize',updateScale,{passive:true});
+        });
+
+        return {
+          steps,themes,palettes,form,activeStep,aiInput,aiResult,aiError,promptCopied,images,slides,currentIndex,dragSlideIndex,dragging,exporting,exportMessage,toast,saveStatus,artboard,artboardShell,
+          selectedPalette,artboardStyle,currentSlide,coverFontSize,pageNumber,cityShort,availableMedia,productItems,researchPrompt,
+          generateSlides,generateCaption,copyCaption,copyResearchPrompt,applyAIResult,mediaSource,handleFiles,onDrop,removeImage,makeCover,moveSlide,dropSlide,duplicateSlide,deleteSlide,downloadCurrent,downloadAll,resetProject,scheduleSave
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
