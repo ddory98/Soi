@@ -278,6 +278,7 @@
                   <label class="block">
                     <span class="field-label">文案語氣</span>
                     <select v-model="aiInput.tone" class="field bg-white">
+                      <option value="sister">姐妹分享感｜像私訊推薦最近的發現</option>
                       <option value="editorial">雜誌編輯感｜有觀點、有留白</option>
                       <option value="living">生活情境感｜像朋友分享，但有品味</option>
                       <option value="trend">韓系選題感｜明確、有趣、俐落</option>
@@ -329,8 +330,8 @@
             <div v-show="activeStep==='brand'" class="space-y-5">
               <div class="flex items-start justify-between gap-3">
                 <div>
-                  <h3 class="text-base font-semibold">品牌資料</h3>
-                  <p class="mt-1 text-xs leading-5 text-[#85877e]">先放入官方資料，再加上妳自己的選物觀點。</p>
+                  <h3 class="text-base font-semibold">品牌與商品資料</h3>
+                  <p class="mt-1 text-xs leading-5 text-[#85877e]">商品特色是主角，再補一點品牌背景與妳的選物觀點。</p>
                 </div>
                 <span class="rounded-full bg-[#eff0e8] px-2.5 py-1 text-[10px] font-semibold text-[#71785f]">STEP 02</span>
               </div>
@@ -362,21 +363,21 @@
                 </label>
               </div>
               <label class="block">
-                <span class="field-label">封面 Hook 標題 <small>{{ form.hook.length }}/28</small></span>
-                <input v-model="form.hook" @input="scheduleSave" maxlength="28" class="field" placeholder="例如：這只包，讓日常穿搭不再無聊。" />
-                <p class="mt-1.5 text-[10px] leading-4 text-[#96988f]">品牌名會另外保留，這裡寫一句讓人想往下滑的標題。</p>
+                <span class="field-label">封面 Hook 標題 <small>{{ form.hook.length }}/28・可換行</small></span>
+                <textarea v-model="form.hook" @input="syncCoverText('title')" maxlength="28" rows="3" class="field min-h-[92px] resize-y" placeholder="例如：這只包，&#10;讓日常穿搭不再無聊。"></textarea>
+                <p class="mt-1.5 text-[10px] leading-4 text-[#96988f]">在想斷行的位置按 Enter；預覽與下載都會保留換行。品牌名會另外保留。</p>
               </label>
               <label class="block">
                 <span class="field-label">一句話介紹 <small>{{ form.tagline.length }}/80</small></span>
                 <input v-model="form.tagline" @input="scheduleSave" maxlength="80" class="field" placeholder="把曼谷的日常，收進一件件安靜的物件裡。" />
               </label>
               <label class="block">
-                <span class="field-label">品牌故事 <small>{{ form.story.length }}/180</small></span>
-                <textarea v-model="form.story" @input="scheduleSave" maxlength="180" class="field" placeholder="建議 2 個短段落，每段只說一件事。"></textarea>
+                <span class="field-label">品牌背景 <small>{{ form.story.length }}/180</small></span>
+                <textarea v-model="form.story" @input="scheduleSave" maxlength="180" class="field" placeholder="只保留與這次商品有關的背景，建議 1–2 個短段落。"></textarea>
               </label>
               <label class="block">
-                <span class="field-label">品牌理念／設計特色</span>
-                <textarea v-model="form.philosophy" @input="scheduleSave" class="field" placeholder="材質、製作方法、核心概念或值得被看見的細節。"></textarea>
+                <span class="field-label">商品特色／設計細節</span>
+                <textarea v-model="form.philosophy" @input="scheduleSave" class="field" placeholder="外型、材質、尺寸、容量、功能、顏色或值得被看見的細節。"></textarea>
               </label>
               <label class="block">
                 <span class="field-label">SOI 為什麼選它</span>
@@ -809,7 +810,7 @@
 
         const form = reactive(defaultForm());
         const activeStep = ref('ai');
-        const aiInput = reactive({ brand:'', products:'', url:'', tone:'observation', hookStyle:'scene' });
+        const aiInput = reactive({ brand:'', products:'', url:'', tone:'sister', hookStyle:'scene' });
         const aiResult = ref('');
         const aiError = ref('');
         const promptCopied = ref(false);
@@ -848,13 +849,19 @@
         }));
         const currentSlide = computed(() => slides.value[currentIndex.value] || { layout:'cta', kicker:'', title:'', body:'', footer:'', mediaIndex:0 });
         const coverFontSize = computed(() => {
-          const length = [...(currentSlide.value.title || '')].length;
-          if (length <= 8) return 132;
-          if (length <= 12) return 118;
-          if (length <= 18) return 102;
-          if (length <= 24) return 90;
-          if (length <= 32) return 78;
-          return 68;
+          const lines = String(currentSlide.value.title || '').split('\n');
+          const length = Math.max(...lines.map(line => [...line].length), 0);
+          const lineCount = lines.filter(line => line.trim()).length || 1;
+          let size;
+          if (length <= 8) size = 132;
+          else if (length <= 12) size = 118;
+          else if (length <= 18) size = 102;
+          else if (length <= 24) size = 90;
+          else if (length <= 32) size = 78;
+          else size = 68;
+          if (lineCount >= 3) size = Math.min(size, 102);
+          if (lineCount >= 4) size = Math.min(size, 90);
+          return size;
         });
         const cityShort = computed(() => (form.city || 'BANGKOK').split(',')[0].toUpperCase());
         const availableMedia = computed(() => images.value.length ? images.value : demoImages.map((src,index)=>({src,name:`示範圖 ${index+1}`})));
@@ -867,6 +874,7 @@
         });
         const researchPrompt = computed(() => {
           const toneMap = {
+            sister: '像把最近發現的好東西私訊給姐妹：自然、親近、帶一點個人觀察，先聊日常情境，再說為什麼會注意到它；有品味但不端著，也不要硬推銷',
             editorial: '獨立生活雜誌的編輯語氣：有觀點、有留白，不像購物台，也不要過度煽情',
             living: '有品味的生活選品語氣：先說人會遇到的生活情境，再自然帶出商品；像朋友分享，但不口語過頭',
             trend: '韓系社群雜誌的選題語氣：標題明確、有趣、帶一點輕鬆感；內文俐落，不堆網路流行語',
@@ -904,8 +912,11 @@ ${aiInput.products || '（尚未填寫）'}
 13. 參考的是內容策略，不得仿寫、改寫或提及其他選品帳號的原句與名稱。
 14. 為內容選擇固定欄目。深度品牌介紹優先使用 BRAND JOURNAL；簡短品牌介紹用 SOI BRAND；多件推薦用 SOI PICKS；曼谷店家或城市發現用 BANGKOK FIND；生活情境提案用 EVERYDAY NOTE。
 15. 如果是多件清單，可在 Hook 放入正確數量；單一商品不要硬寫數字。
-16. BRAND JOURNAL 的內容順序優先是：如何認識它／品牌從哪裡來／文化或設計靈感／商品細節／SOI 為什麼想帶回來。不要把每頁都寫成購買理由。
+16. 內容以商品為主角，約 70% 寫商品特色、30% 補充品牌背景。品牌來源或故事最多一頁，其餘優先寫外型設計、材質、尺寸或容量、收納與功能、顏色、搭配情境及適合的生活習慣；只寫來源可驗證的特色。
 17. 除非資料來源明確，不能把「泰國感」、「地方文化」或「手工」當成事實；無法驗證時只能寫成編輯觀察。
+18. 整體要像在跟姐妹分享最近發現的品牌：可以用「最近注意到」、「第一眼會被吸引的是」、「如果你也喜歡……」這類自然句型，但不要每頁重複同一個開頭。
+19. 避免官方新聞稿用語，例如「秉持理念」、「致力於」、「完美結合」、「不容錯過」、「必入手」；也不要命令讀者購買。
+20. 可以有一點第一人稱觀察，但不能捏造購買、穿戴、使用、到店或與品牌接觸的經驗。每頁以 2 至 4 個短句為主。
 
 【輸出要求】
 只輸出一個合法 JSON 物件，不要加 Markdown、不要使用三個反引號、不要補充說明。所有欄位都必須存在；沒有資料時使用空字串或空陣列。
@@ -916,45 +927,45 @@ ${aiInput.products || '（尚未填寫）'}
   "category": "英文分類，例如 LIFESTYLE / BAGS",
   "series": "只使用 BRAND JOURNAL、SOI BRAND、SOI PICKS、BANGKOK FIND、EVERYDAY NOTE 其中一個",
   "hook": "12 至 22 字的封面 Hook，不重複品牌名，讓人想繼續往下滑",
-  "tagline": "25 至 45 字的一句話品牌介紹",
-  "story": "60 至 100 字、最多兩個短段落的品牌故事，只寫可驗證內容",
-  "philosophy": "50 至 90 字、最多兩個短段落的設計理念、材質或特色",
-  "reason": "40 至 80 字、最多兩個短段落的 SOI 選物理由草稿",
+  "tagline": "25 至 45 字的一句話介紹，優先說明這次商品最吸引人的特色",
+  "story": "40 至 65 字、最多兩個短段落的品牌背景，只保留與商品有關的可驗證內容",
+  "philosophy": "40 至 70 字、最多兩個短段落的商品設計、材質、功能或特色",
+  "reason": "35 至 60 字、最多兩個短段落的 SOI 選物理由草稿",
   "products": [
-    {"name": "商品正式名稱", "description": "20 至 45 字、只包含可驗證特色"}
+    {"name": "商品正式名稱", "description": "25 至 50 字、優先整理材質、尺寸、容量、功能、顏色或設計細節等可驗證特色"}
   ],
   "source_label": "適合放在版面頁尾的短來源標示",
   "sources": [
     {"title": "來源名稱", "url": "完整網址"}
   ],
   "carousel": [
-    {"kicker": "第 2 頁起的短標示", "title": "14 至 26 字、有閱讀動機的頁面標題", "body": "35 至 80 字，只講一個重點；必要時分成兩個短段落"}
+    {"kicker": "第 2 頁起的短標示", "title": "12 至 22 字、自然好讀的頁面標題", "body": "28 至 60 字，只講一個重點；必要時分成兩個短段落"}
   ],
-  "caption": "180 至 260 字的精簡 IG 文案：第一段是 Hook，全文 3 至 4 個短段落、段落間空一行，最後加入一句引導與 5 至 8 個 hashtag"
+  "caption": "120 至 180 字的精簡 IG 文案：像分享給姐妹，第一段是 Hook，全文 3 至 4 個短段落、段落間空一行，最後加入一句自然引導與 5 至 8 個 hashtag"
 }
 
-carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序涵蓋：第一次認識它的線索、品牌來源、文化或設計靈感、商品細節、SOI 選物理由；頁數不足時合併相近主題。不要包含封面與最後 CTA。`;
+carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，內容以商品特色為主，依序涵蓋：第一眼注意到的商品亮點、必要的品牌背景、外型與設計細節、材質／尺寸／容量／功能等已查證資訊、放進哪些日常情境會很自然、SOI 想分享它的理由。若某項資料查不到就略過，不得自行補寫；頁數不足時合併相近主題。不要包含封面與最後 CTA。`;
         });
 
         const labels = computed(() => {
-          if (form.language === 'zh') return { cover:'本期選物', story:'品牌故事', quote:'品牌理念', details:'設計細節', curation:'選物筆記', products:'推薦單品', city:'曼谷來信', closing:'帶回日常', cta:'繼續探索' };
+          if (form.language === 'zh') return { cover:'本期選物', story:'品牌背景', quote:'商品亮點', details:'設計細節', curation:'選物筆記', products:'推薦單品', city:'曼谷來信', closing:'帶回日常', cta:'繼續探索' };
           if (form.language === 'en') return { cover:'BRAND FEATURE', story:'THE STORY', quote:'POINT OF VIEW', details:'DESIGN DETAILS', curation:'WHY WE PICKED IT', products:'SELECTED ITEMS', city:'BANGKOK NOTE', closing:'BRING IT HOME', cta:'DISCOVER MORE' };
-          return { cover:'BRAND FEATURE', story:'品牌故事 / THE STORY', quote:'POINT OF VIEW', details:'設計細節 / DETAILS', curation:'SOI 選物筆記', products:'SELECTED ITEMS', city:'BANGKOK NOTE', closing:'BRING IT HOME', cta:'DISCOVER MORE' };
+          return { cover:'BRAND FEATURE', story:'品牌背景 / THE STORY', quote:'商品亮點 / HIGHLIGHTS', details:'設計細節 / DETAILS', curation:'SOI 選物筆記', products:'SELECTED ITEMS', city:'BANGKOK NOTE', closing:'BRING IT HOME', cta:'DISCOVER MORE' };
         });
 
         function slidePool() {
           const brand = form.brand || 'YOUR BRAND';
-          const storyTitle = form.language === 'en' ? 'A quiet point of view, made for everyday life.' : '它從哪裡來，又想把什麼留進日常？';
+          const storyTitle = form.language === 'en' ? 'A quiet point of view, made for everyday life.' : '最近認識的這個品牌，滿有意思。';
           const quoteTitle = form.tagline || '好的物件，不急著被看見。';
-          const detailsTitle = form.language === 'en' ? 'Details that reveal themselves over time.' : '有些細節，不必第一眼就看見。';
-          const reasonTitle = form.language === 'en' ? 'Why it belongs in our edit.' : 'SOI 為什麼想把它帶回來？';
+          const detailsTitle = form.language === 'en' ? 'Details that reveal themselves over time.' : '第一眼好看，細看還有這些小地方。';
+          const reasonTitle = form.language === 'en' ? 'Why it belongs in our edit.' : '我會想把它分享給妳，是因為——';
           return [
             { id: crypto.randomUUID(), layout:'cover', kicker:`${form.series || labels.value.cover} / ${form.category}`, title:form.hook || form.tagline || '值得認識的日常選物。', body:form.tagline, footer:form.city || 'BANGKOK, THAILAND', mediaIndex:0 },
             { id: crypto.randomUUID(), layout:'intro', kicker:labels.value.story, title:storyTitle, body:form.story, footer:form.source || 'BRAND OFFICIAL / SOI EDIT', mediaIndex:1 },
             { id: crypto.randomUUID(), layout:'quote', kicker:labels.value.quote, title:quoteTitle, body:form.philosophy, footer:brand, mediaIndex:2 },
             { id: crypto.randomUUID(), layout:'details', kicker:labels.value.details, title:detailsTitle, body:form.philosophy, footer:'FORM / MATERIAL / EVERYDAY', mediaIndex:2 },
             { id: crypto.randomUUID(), layout:'curation', kicker:labels.value.curation, title:reasonTitle, body:form.reason, footer:`SELECTED BY SOI · ${cityShort.value}`, mediaIndex:3 },
-            { id: crypto.randomUUID(), layout:'products', kicker:labels.value.products, title:'這幾件，最值得先認識。', body:'選擇真正會被使用、也值得被長久留下的單品。', footer:brand, mediaIndex:0 },
+            { id: crypto.randomUUID(), layout:'products', kicker:labels.value.products, title:'如果第一次看，可以先從這幾件開始。', body:'不用一次看完，先挑一件最像妳日常會用到的。', footer:brand, mediaIndex:0 },
             { id: crypto.randomUUID(), layout:'split', kicker:labels.value.city, title:`Found in ${cityShort.value}.`, body:`我們在城市裡尋找的不只是紀念品，\n而是能把一段故事帶回家的物件。`, footer:'CURATED FROM BANGKOK.', mediaIndex:1 },
             { id: crypto.randomUUID(), layout:'details', kicker:'IN USE', title:'Made to live with you.', body:'真正好的設計，會自然融入每天的動作。從觸感、重量到收納方式，每一處都剛剛好。', footer:'EVERYDAY OBJECTS', mediaIndex:3 },
             { id: crypto.randomUUID(), layout:'closing', kicker:labels.value.closing, title:'Take a piece of Bangkok home.', body:'不是把旅行打包，而是把一種生活方式帶回來。', footer:brand, mediaIndex:0 },
@@ -981,10 +992,16 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序
           scheduleSave();
         }
 
+        function syncCoverText(field) {
+          const cover = slides.value.find(slide => slide.layout === 'cover');
+          if (cover && field === 'title') cover.title = form.hook || form.tagline || '值得認識的日常選物。';
+          scheduleSave();
+        }
+
         function generateCaption(force = false) {
           if (form.caption && !force) return;
           const account = form.instagram || '@foundbysoi';
-          form.caption = `${form.hook || form.tagline || '一個值得被帶回日常的品牌。'}\n\n${form.brand || 'SOI BRAND FEATURE'}，${form.tagline || '把好設計放進每天的生活。'}\n\n${form.reason || 'SOI 喜歡的不只是它的樣子，更是它能自然融入日常。'}\n\n想看哪一件單品？留言告訴我們。\n${account}\n\n#FoundbySOI #SOISelect #BangkokDesign #泰國選物 #生活選物`;
+          form.caption = `${form.hook || form.tagline || '最近看到一個很想分享給妳的品牌。'}\n\n最近注意到 ${form.brand || '這個品牌'}，${form.tagline || '第一眼不會太張揚，卻很容易讓人多看一下。'}\n\n${form.reason || '我喜歡的不是它有多搶眼，而是放進日常裡，感覺會很自然。'}\n\n如果是妳，會先看哪一件？\n${account}\n\n#FoundbySOI #SOISelect #BangkokDesign #泰國選物 #生活選物`;
           scheduleSave();
         }
 
@@ -1264,7 +1281,7 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序
         }
         function resetProject() {
           if (!confirm('要清除目前內容並回到示範專案嗎？')) return;
-          Object.assign(form,defaultForm()); Object.assign(aiInput,{brand:'',products:'',url:'',tone:'observation',hookStyle:'scene'}); aiResult.value=''; aiError.value=''; images.value=[]; currentIndex.value=0; activeStep.value='ai'; generateSlides(true); generateCaption(true); showToast('已建立新的空白專案');
+          Object.assign(form,defaultForm()); Object.assign(aiInput,{brand:'',products:'',url:'',tone:'sister',hookStyle:'scene'}); aiResult.value=''; aiError.value=''; images.value=[]; currentIndex.value=0; activeStep.value='ai'; generateSlides(true); generateCaption(true); showToast('已建立新的空白專案');
         }
         function updateScale() {
           if (artboardShell.value) previewScale.value=artboardShell.value.clientWidth/1080;
@@ -1282,7 +1299,7 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序
         return {
           steps,themes,palettes,form,activeStep,aiInput,aiResult,aiError,promptCopied,images,slides,currentIndex,dragSlideIndex,dragging,exporting,exportMessage,toast,saveStatus,artboard,artboardShell,
           selectedPalette,artboardStyle,currentSlide,coverFontSize,cityShort,availableMedia,productItems,researchPrompt,
-          generateSlides,updateSeries,generateCaption,copyCaption,copyResearchPrompt,applyAIResult,mediaSource,handleFiles,onDrop,removeImage,makeCover,moveSlide,dropSlide,duplicateSlide,deleteSlide,downloadCurrent,downloadAll,resetProject,scheduleSave
+          generateSlides,updateSeries,syncCoverText,generateCaption,copyCaption,copyResearchPrompt,applyAIResult,mediaSource,handleFiles,onDrop,removeImage,makeCover,moveSlide,dropSlide,duplicateSlide,deleteSlide,downloadCurrent,downloadAll,resetProject,scheduleSave
         };
       }
     }).mount('#app');
