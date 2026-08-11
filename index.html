@@ -160,6 +160,9 @@
     .cover-ui-dark { color: #20231f; text-shadow: 0 2px 22px rgba(255,255,255,.2); }
     .layout-cover.object .cover-title { font-family: Inter, "Noto Sans TC", sans-serif; font-weight: 600; letter-spacing: -.06em; }
     .layout-cover.notes .cover-title { font-style: italic; }
+    .artboard.living .art-serif { font-family: Inter, "Noto Sans TC", sans-serif; font-weight: 600; }
+    .layout-cover.living .cover-title { line-height: .98; letter-spacing: -.045em; }
+    .artboard.living .art-kicker { letter-spacing: .13em; }
     .cover-star { font-family: "DM Serif Display", serif; line-height: 1; }
     .paper-grid {
       background-image:
@@ -265,8 +268,18 @@
                     <span class="field-label">文案語氣</span>
                     <select v-model="aiInput.tone" class="field bg-white">
                       <option value="editorial">雜誌編輯感｜有觀點、有留白</option>
+                      <option value="living">生活情境感｜像朋友分享，但有品味</option>
                       <option value="warm">溫柔生活感｜自然、親近</option>
                       <option value="minimal">極簡理性感｜乾淨、精準</option>
+                    </select>
+                  </label>
+                  <label class="block">
+                    <span class="field-label">封面 Hook 切角</span>
+                    <select v-model="aiInput.hookStyle" class="field bg-white">
+                      <option value="question">生活問句｜讓人立刻代入</option>
+                      <option value="contrast">觀點對比｜不只是…而是…</option>
+                      <option value="scene">日常畫面｜從一個生活瞬間開始</option>
+                      <option value="direct">直接亮點｜一句說出值得看的原因</option>
                     </select>
                   </label>
                 </div>
@@ -324,12 +337,17 @@
                 <input v-model="form.category" @input="scheduleSave" class="field" placeholder="LIFESTYLE / OBJECTS" />
               </label>
               <label class="block">
+                <span class="field-label">封面 Hook 標題 <small>{{ form.hook.length }}/28</small></span>
+                <input v-model="form.hook" @input="scheduleSave" maxlength="28" class="field" placeholder="例如：這只包，讓日常穿搭不再無聊。" />
+                <p class="mt-1.5 text-[10px] leading-4 text-[#96988f]">品牌名會另外保留，這裡寫一句讓人想往下滑的標題。</p>
+              </label>
+              <label class="block">
                 <span class="field-label">一句話介紹 <small>{{ form.tagline.length }}/80</small></span>
                 <input v-model="form.tagline" @input="scheduleSave" maxlength="80" class="field" placeholder="把曼谷的日常，收進一件件安靜的物件裡。" />
               </label>
               <label class="block">
-                <span class="field-label">品牌故事 <small>{{ form.story.length }}/360</small></span>
-                <textarea v-model="form.story" @input="scheduleSave" maxlength="360" class="field" placeholder="品牌從哪裡開始？在意什麼？"></textarea>
+                <span class="field-label">品牌故事 <small>{{ form.story.length }}/180</small></span>
+                <textarea v-model="form.story" @input="scheduleSave" maxlength="180" class="field" placeholder="建議 2 個短段落，每段只說一件事。"></textarea>
               </label>
               <label class="block">
                 <span class="field-label">品牌理念／設計特色</span>
@@ -428,7 +446,7 @@
                     </span>
                   </button>
                 </div>
-                <p class="mt-2 rounded-xl bg-[#f1f0ea] px-3 py-2 text-[10px] leading-5 text-[#777970]">三套版型的封面都會使用滿版照片，風格差異會呈現在字體與細節編排。</p>
+                <p class="mt-2 rounded-xl bg-[#f1f0ea] px-3 py-2 text-[10px] leading-5 text-[#777970]">所有版型的封面都會使用滿版照片，風格差異會呈現在字體與細節編排。</p>
               </div>
 
               <div>
@@ -455,7 +473,7 @@
               </div>
               <div>
                 <span class="field-label">品牌配色</span>
-                <div class="grid grid-cols-3 gap-3">
+                <div class="grid grid-cols-2 gap-3">
                   <button v-for="palette in palettes" :key="palette.key" @click="form.palette=palette.key; scheduleSave()"
                     class="rounded-2xl border p-2 text-left transition" :class="form.palette===palette.key ? 'border-sage bg-white shadow-sm' : 'hairline bg-white/50'">
                     <span class="mb-2 flex h-10 overflow-hidden rounded-xl">
@@ -488,8 +506,9 @@
                   <textarea v-model="currentSlide.title" @input="scheduleSave" maxlength="90" class="field min-h-[86px]"></textarea>
                 </label>
                 <label class="block">
-                  <span class="field-label">內文 <small>{{ currentSlide.body.length }}/360</small></span>
-                  <textarea v-model="currentSlide.body" @input="scheduleSave" maxlength="360" class="field min-h-[126px]"></textarea>
+                  <span class="field-label">內文 <small>{{ currentSlide.body.length }}/180</small></span>
+                  <textarea v-model="currentSlide.body" @input="scheduleSave" maxlength="180" class="field min-h-[126px]"></textarea>
+                  <p class="mt-1.5 text-[10px] leading-4 text-[#96988f]">一頁一個重點；需要換段時請空一行。</p>
                 </label>
                 <label class="block">
                   <span class="field-label">頁尾文字</span>
@@ -565,7 +584,7 @@
                       </div>
                       <h3 class="cover-title art-serif max-w-[940px]" :style="{fontSize:coverFontSize+'px'}">{{ currentSlide.title }}</h3>
                       <div class="mt-8 grid grid-cols-[1fr_auto] items-end gap-10 border-t border-current/55 pt-6">
-                        <p v-if="currentSlide.body" class="max-w-[740px] text-[27px] font-medium leading-[1.58]">{{ currentSlide.body }}</p>
+                        <p v-if="currentSlide.body" class="max-w-[740px] whitespace-pre-line text-[27px] font-medium leading-[1.58]">{{ currentSlide.body }}</p>
                         <p class="text-right art-small font-semibold leading-[1.55]">SWIPE TO<br>READ ↗</p>
                       </div>
                     </div>
@@ -593,7 +612,7 @@
                   <div class="absolute left-[148px] right-[126px] top-[360px]">
                     <h3 class="art-serif text-[82px] leading-[1.22] tracking-[-.025em]">{{ currentSlide.title }}</h3>
                     <div class="mt-14 h-[2px] w-[180px] bg-current opacity-45"></div>
-                    <p class="art-copy mt-12 max-w-[720px]">{{ currentSlide.body }}</p>
+                    <p class="art-copy mt-12 max-w-[720px] whitespace-pre-line">{{ currentSlide.body }}</p>
                   </div>
                   <div class="absolute bottom-[68px] left-[70px] right-[70px] flex justify-between art-small"><span>{{ currentSlide.footer }}</span><span>FOUND BY SOI</span></div>
                 </template>
@@ -605,7 +624,7 @@
                   <div class="absolute left-[68px] top-[60px] rounded-full bg-[var(--paper)]/90 px-6 py-3 art-small">{{ currentSlide.kicker }}</div>
                   <div class="absolute left-[68px] right-[68px] top-[815px] grid grid-cols-[1.05fr_.95fr] gap-[64px]">
                     <h3 class="art-serif text-[74px] leading-[1.02] tracking-[-.02em]">{{ currentSlide.title }}</h3>
-                    <p class="text-[27px] leading-[1.72]">{{ currentSlide.body }}</p>
+                    <p class="whitespace-pre-line text-[27px] leading-[1.72]">{{ currentSlide.body }}</p>
                   </div>
                   <div class="absolute bottom-[54px] left-[68px] right-[68px] flex justify-between border-t border-current/25 pt-5 art-small"><span>{{ currentSlide.footer }}</span><span>{{ pageNumber }}</span></div>
                 </template>
@@ -620,7 +639,7 @@
                     <h3 class="art-serif max-w-[900px] text-[82px] leading-[1.02] tracking-[-.025em]">{{ currentSlide.title }}</h3>
                     <div class="mt-11 grid grid-cols-[170px_1fr] gap-12 border-t border-current/30 pt-9">
                       <p class="art-small leading-7">SELECTED<br/>WITH A<br/>POINT OF VIEW</p>
-                      <p class="art-copy">{{ currentSlide.body }}</p>
+                      <p class="art-copy whitespace-pre-line">{{ currentSlide.body }}</p>
                     </div>
                   </div>
                   <div class="absolute bottom-[50px] left-[70px] art-small">{{ currentSlide.footer }}</div>
@@ -637,7 +656,7 @@
                       <div class="flex gap-5"><span class="art-small">0{{ index+1 }}</span><div><h4 class="text-[25px] font-semibold tracking-[.06em]">{{ product.name }}</h4><p class="mt-3 text-[20px] leading-[1.55] opacity-75">{{ product.description }}</p></div></div>
                     </div>
                   </div>
-                  <p v-if="currentSlide.body" class="absolute bottom-[66px] left-[70px] max-w-[720px] text-[22px] leading-[1.6]">{{ currentSlide.body }}</p>
+                  <p v-if="currentSlide.body" class="absolute bottom-[66px] left-[70px] max-w-[720px] whitespace-pre-line text-[22px] leading-[1.6]">{{ currentSlide.body }}</p>
                   <div class="absolute bottom-[52px] right-[70px] art-small">{{ currentSlide.footer }}</div>
                 </template>
 
@@ -657,7 +676,7 @@
                     <div class="flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>{{ pageNumber }}</span></div>
                     <div>
                       <h3 class="art-serif max-w-[900px] text-[104px] leading-[.98] tracking-[-.03em]">{{ currentSlide.title }}</h3>
-                      <p class="mt-10 max-w-[760px] text-[30px] leading-[1.7]">{{ currentSlide.body }}</p>
+                      <p class="mt-10 max-w-[760px] whitespace-pre-line text-[30px] leading-[1.7]">{{ currentSlide.body }}</p>
                     </div>
                     <div class="flex justify-between border-t border-white/40 pt-5 art-small"><span>{{ currentSlide.footer }}</span><span>SOI / BANGKOK</span></div>
                   </div>
@@ -669,7 +688,7 @@
                   <div class="absolute left-[70px] right-[70px] top-[315px] text-center">
                     <p class="mb-8 text-[25px] tracking-[.22em] opacity-70">FOUND IN BANGKOK</p>
                     <h3 class="whitespace-pre-line art-serif text-[105px] leading-[.98] tracking-[-.035em]">{{ currentSlide.title }}</h3>
-                    <p class="mx-auto mt-11 max-w-[740px] text-[30px] leading-[1.7]">{{ currentSlide.body }}</p>
+                    <p class="mx-auto mt-11 max-w-[740px] whitespace-pre-line text-[30px] leading-[1.7]">{{ currentSlide.body }}</p>
                     <div class="mx-auto mt-14 h-[82px] w-px bg-current opacity-40"></div>
                     <p class="mt-8 text-[23px] font-semibold tracking-[.16em]">{{ form.instagram || '@foundbysoi' }}</p>
                   </div>
@@ -726,11 +745,13 @@
         ];
         const themes = [
           { key: 'editorial', name: 'EDITORIAL', description: '大量留白與大字標題，像獨立生活雜誌。', preview: 'linear-gradient(135deg,#f0ece1 0 55%,#9aa083 55%)' },
+          { key: 'living', name: 'THAI LIVING', description: '滿版生活照、中文大標與容易代入的日常情境。', preview: 'linear-gradient(145deg,#b96947 0 48%,#f3e8dc 48% 76%,#7e8b64 76%)' },
           { key: 'object', name: 'OBJECT', description: '清楚、理性、聚焦商品與設計細節。', preview: 'linear-gradient(180deg,#d8d4ca 0 58%,#ffffff 58%)' },
           { key: 'notes', name: 'BANGKOK NOTES', description: '帶一點城市採集、手記與紙張感。', preview: 'linear-gradient(115deg,#ded4c4 0 48%,#9e8068 48%)' }
         ];
         const palettes = [
           { key: 'cream', name: 'Cream / Olive', paper: '#f2efe5', ink: '#22251f', accent: '#8f9677' },
+          { key: 'clay', name: 'Clay / Leaf', paper: '#f3e9dc', ink: '#292820', accent: '#b76f4d' },
           { key: 'stone', name: 'Stone / Silver', paper: '#ecebe7', ink: '#292b29', accent: '#a5a5a0' },
           { key: 'sand', name: 'Sand / Taupe', paper: '#e8dfd2', ink: '#302c27', accent: '#9b806d' }
         ];
@@ -739,17 +760,18 @@
           brand: 'PRACTICE OBJECTS',
           city: 'Bangkok, Thailand',
           category: 'LIFESTYLE / OBJECTS',
+          hook: '好看的物件，也可以讓日常更有意思。',
           tagline: '把曼谷的日常，收進一件件安靜的物件裡。',
-          story: '從對日常器物的觀察出發，品牌相信真正耐看的設計，不需要急著說服誰。簡單的輪廓、舒服的觸感，以及能長久陪伴生活的功能，是每件作品共同的語言。',
-          philosophy: '低飽和色彩、柔和輪廓與實用結構，讓物件自然融入每一種生活。設計保留材質原本的表情，也在細節裡留下手作的溫度。',
-          reason: '我們喜歡它沒有刻意討好的樣子。拿在手上很輕，放進日常卻很有存在感；那種安靜、耐看、使用後才慢慢理解的細節，就是 SOI 想帶回來的曼谷。',
-          productsText: 'CARRY POUCH｜輕巧、防潑水，適合收好每天的小東西\nSOFT TOTE｜低飽和色彩與柔軟輪廓\nDAILY TRAY｜把桌面日常整理得剛剛好\nMINI CASE｜簡單收納，也是一件耐看的物件',
+          story: '從對日常器物的觀察出發，品牌把簡單輪廓與實用功能放進每件作品。\n\n不搶眼，卻能安靜地陪伴生活。',
+          philosophy: '低飽和色彩、柔和輪廓與實用結構，讓物件自然融入日常。\n\n細節不喧鬧，使用後才慢慢被看見。',
+          reason: '我們喜歡它安靜、耐看的樣子。\n\n不是只為了拍照，而是真的能留在每天的生活裡。',
+          productsText: 'CARRY POUCH｜輕巧、防潑水，收好每天的小東西\nSOFT TOTE｜低飽和色彩與柔軟輪廓\nDAILY TRAY｜讓桌面日常剛剛好\nMINI CASE｜簡單又耐看的收納物件',
           instagram: '@foundbysoi',
           source: 'BRAND OFFICIAL / SOI EDIT',
           references: '',
           caption: '',
-          theme: 'editorial',
-          palette: 'cream',
+          theme: 'living',
+          palette: 'clay',
           coverText: 'light',
           language: 'mix',
           slideCount: 7
@@ -757,7 +779,7 @@
 
         const form = reactive(defaultForm());
         const activeStep = ref('ai');
-        const aiInput = reactive({ brand:'', products:'', url:'', tone:'editorial' });
+        const aiInput = reactive({ brand:'', products:'', url:'', tone:'living', hookStyle:'question' });
         const aiResult = ref('');
         const aiError = ref('');
         const promptCopied = ref(false);
@@ -816,8 +838,15 @@
         const researchPrompt = computed(() => {
           const toneMap = {
             editorial: '獨立生活雜誌的編輯語氣：有觀點、有留白，不像購物台，也不要過度煽情',
+            living: '有品味的生活選品語氣：先說人會遇到的生活情境，再自然帶出商品；像朋友分享，但不口語過頭',
             warm: '溫柔自然的生活選物語氣：親近、好讀，但不使用浮誇銷售字眼',
             minimal: '極簡理性的編輯語氣：短句、精準、重視設計與使用細節'
+          };
+          const hookMap = {
+            question: '使用生活問句，讓讀者立刻想到自己的日常；不要問可以只回答是或不是的空泛問題',
+            contrast: '使用「不只是……而是……」或相近的觀點對比，但不要每篇都用完全相同句型',
+            scene: '從下班、出門、整理房間、挑選穿搭等具體生活瞬間開始，畫面要自然',
+            direct: '直接說出最值得看的亮點，清楚但不能像促銷廣告'
           };
           return `你是台灣生活選物品牌 Found by SOI 的內容編輯。請先使用網路搜尋，研究以下品牌與商品，然後撰寫可直接放進 Instagram 雜誌式輪播的繁體中文文案。
 
@@ -835,6 +864,12 @@ ${aiInput.products || '（尚未填寫）'}
 5. 全文使用繁體中文，品牌名與產品名保留原文。
 6. 文案語氣：${toneMap[aiInput.tone] || toneMap.editorial}。
 7. 不要寫成泰國代購帳號；要像生活風格雜誌介紹一個值得認識的品牌。
+8. 手機閱讀優先：句子短、留白多，每個欄位最多兩個短段落，段落之間以空行分隔。
+9. 輪播一頁只講一個重點，不要重複同一件事，也不要堆疊形容詞。
+10. 封面必須同時有品牌名與 Hook；Hook 要能引起好奇、提出生活情境或鮮明觀點，但不可誇大或像聳動廣告。
+11. 內容節奏要像好讀的生活選品帳號：先讓讀者代入一個日常，再介紹品牌與商品，不要一開頭就堆品牌歷史。
+12. Hook 切角：${hookMap[aiInput.hookStyle] || hookMap.question}。
+13. 參考的是內容策略，不得仿寫、改寫或提及其他選品帳號的原句與名稱。
 
 【輸出要求】
 只輸出一個合法 JSON 物件，不要加 Markdown、不要使用三個反引號、不要補充說明。所有欄位都必須存在；沒有資料時使用空字串或空陣列。
@@ -843,19 +878,25 @@ ${aiInput.products || '（尚未填寫）'}
   "brand": "品牌正式名稱",
   "city": "城市, 國家",
   "category": "英文分類，例如 LIFESTYLE / BAGS",
-  "tagline": "80 字內的一句話品牌介紹",
-  "story": "180 至 260 字的品牌故事，只寫可驗證內容",
-  "philosophy": "120 至 220 字的設計理念、材質或特色",
-  "reason": "100 至 180 字的 SOI 選物理由草稿",
+  "hook": "12 至 22 字的封面 Hook，不重複品牌名，讓人想繼續往下滑",
+  "tagline": "25 至 45 字的一句話品牌介紹",
+  "story": "60 至 100 字、最多兩個短段落的品牌故事，只寫可驗證內容",
+  "philosophy": "50 至 90 字、最多兩個短段落的設計理念、材質或特色",
+  "reason": "40 至 80 字、最多兩個短段落的 SOI 選物理由草稿",
   "products": [
-    {"name": "商品正式名稱", "description": "40 至 80 字、只包含可驗證特色"}
+    {"name": "商品正式名稱", "description": "20 至 45 字、只包含可驗證特色"}
   ],
   "source_label": "適合放在版面頁尾的短來源標示",
   "sources": [
     {"title": "來源名稱", "url": "完整網址"}
   ],
-  "caption": "完整 IG 貼文文案，包含自然分段、結尾引導與 5 至 8 個相關 hashtag"
-}`;
+  "carousel": [
+    {"kicker": "第 2 頁起的短標示", "title": "14 至 26 字、有閱讀動機的頁面標題", "body": "35 至 80 字，只講一個重點；必要時分成兩個短段落"}
+  ],
+  "caption": "180 至 260 字的精簡 IG 文案：第一段是 Hook，全文 3 至 4 個短段落、段落間空一行，最後加入一句引導與 5 至 8 個 hashtag"
+}
+
+carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序涵蓋：品牌一句話、生活使用情境、設計或商品細節、SOI 選物理由、推薦單品；頁數不足時合併相近主題。不要包含封面與最後 CTA。`;
         });
 
         const labels = computed(() => {
@@ -866,17 +907,17 @@ ${aiInput.products || '（尚未填寫）'}
 
         function slidePool() {
           const brand = form.brand || 'YOUR BRAND';
-          const storyTitle = form.language === 'en' ? 'A quiet point of view, made for everyday life.' : '從日常出發，讓設計安靜地留在生活裡。';
+          const storyTitle = form.language === 'en' ? 'A quiet point of view, made for everyday life.' : '它從哪裡來，又想把什麼留進日常？';
           const quoteTitle = form.tagline || '好的物件，不急著被看見。';
-          const detailsTitle = form.language === 'en' ? 'Details that reveal themselves over time.' : '真正耐看的細節，會在使用之後慢慢出現。';
-          const reasonTitle = form.language === 'en' ? 'Why it belongs in our edit.' : '不只因為好看，更因為它值得留在日常。';
+          const detailsTitle = form.language === 'en' ? 'Details that reveal themselves over time.' : '有些細節，不必第一眼就看見。';
+          const reasonTitle = form.language === 'en' ? 'Why it belongs in our edit.' : 'SOI 為什麼想把它帶回來？';
           return [
-            { id: crypto.randomUUID(), layout:'cover', kicker:`${labels.value.cover} / ${form.category}`, title:brand, body:form.tagline, footer:form.city || 'BANGKOK, THAILAND', mediaIndex:0 },
+            { id: crypto.randomUUID(), layout:'cover', kicker:`${brand} / ${form.category}`, title:form.hook || form.tagline || '值得認識的日常選物。', body:form.tagline, footer:form.city || 'BANGKOK, THAILAND', mediaIndex:0 },
             { id: crypto.randomUUID(), layout:'intro', kicker:labels.value.story, title:storyTitle, body:form.story, footer:form.source || 'BRAND OFFICIAL / SOI EDIT', mediaIndex:1 },
             { id: crypto.randomUUID(), layout:'quote', kicker:labels.value.quote, title:quoteTitle, body:form.philosophy, footer:brand, mediaIndex:2 },
             { id: crypto.randomUUID(), layout:'details', kicker:labels.value.details, title:detailsTitle, body:form.philosophy, footer:'FORM / MATERIAL / EVERYDAY', mediaIndex:2 },
             { id: crypto.randomUUID(), layout:'curation', kicker:labels.value.curation, title:reasonTitle, body:form.reason, footer:`SELECTED BY SOI · ${cityShort.value}`, mediaIndex:3 },
-            { id: crypto.randomUUID(), layout:'products', kicker:labels.value.products, title:'The SOI Selection', body:'選擇真正會被使用、也值得被長久留下的單品。', footer:brand, mediaIndex:0 },
+            { id: crypto.randomUUID(), layout:'products', kicker:labels.value.products, title:'這幾件，最值得先認識。', body:'選擇真正會被使用、也值得被長久留下的單品。', footer:brand, mediaIndex:0 },
             { id: crypto.randomUUID(), layout:'split', kicker:labels.value.city, title:`Found in ${cityShort.value}.`, body:`我們在城市裡尋找的不只是紀念品，\n而是能把一段故事帶回家的物件。`, footer:'CURATED FROM BANGKOK.', mediaIndex:1 },
             { id: crypto.randomUUID(), layout:'details', kicker:'IN USE / 08', title:'Made to live with you.', body:'真正好的設計，會自然融入每天的動作。從觸感、重量到收納方式，每一處都剛剛好。', footer:'EVERYDAY OBJECTS', mediaIndex:3 },
             { id: crypto.randomUUID(), layout:'closing', kicker:labels.value.closing, title:'Take a piece of Bangkok home.', body:'不是把旅行打包，而是把一種生活方式帶回來。', footer:brand, mediaIndex:0 },
@@ -900,7 +941,7 @@ ${aiInput.products || '（尚未填寫）'}
         function generateCaption(force = false) {
           if (form.caption && !force) return;
           const account = form.instagram || '@foundbysoi';
-          form.caption = `${form.brand || 'SOI BRAND FEATURE'}｜${form.tagline || '一個值得被帶回日常的品牌。'}\n\n${form.story || ''}\n\n為什麼 SOI 選它？\n${form.reason || ''}\n\n這次的選物，想把來自 ${form.city || 'Bangkok'} 的生活觀點分享給你。\n\n${account}\n\n#FoundbySOI #SOISelect #BangkokDesign #泰國選物 #生活選物`;
+          form.caption = `${form.hook || form.tagline || '一個值得被帶回日常的品牌。'}\n\n${form.brand || 'SOI BRAND FEATURE'}，${form.tagline || '把好設計放進每天的生活。'}\n\n${form.reason || 'SOI 喜歡的不只是它的樣子，更是它能自然融入日常。'}\n\n想看哪一件單品？留言告訴我們。\n${account}\n\n#FoundbySOI #SOISelect #BangkokDesign #泰國選物 #生活選物`;
           scheduleSave();
         }
 
@@ -965,6 +1006,11 @@ ${aiInput.products || '（尚未填寫）'}
           try {
             const data = parseAIJson(aiResult.value);
             const asText = value => typeof value === 'string' ? value.trim() : '';
+            const carousel = Array.isArray(data.carousel) ? data.carousel.map(item => ({
+              kicker: asText(item?.kicker),
+              title: asText(item?.title),
+              body: asText(item?.body)
+            })).filter(item => item.title || item.body) : [];
             const products = Array.isArray(data.products) ? data.products.map(item => {
               if (typeof item === 'string') return item.trim();
               const name = asText(item?.name) || 'SELECTED ITEM';
@@ -982,6 +1028,7 @@ ${aiInput.products || '（尚未填寫）'}
               brand: asText(data.brand) || aiInput.brand.trim() || form.brand,
               city: asText(data.city) || form.city,
               category: asText(data.category) || form.category,
+              hook: asText(data.hook) || asText(data.tagline) || form.hook,
               tagline: asText(data.tagline) || form.tagline,
               story: asText(data.story) || form.story,
               philosophy: asText(data.philosophy) || form.philosophy,
@@ -993,6 +1040,13 @@ ${aiInput.products || '（尚未填寫）'}
             });
             if (!form.caption) generateCaption(true);
             generateSlides(true);
+            carousel.slice(0, Math.max(0, slides.value.length - 2)).forEach((item,index) => {
+              const target = slides.value[index + 1];
+              if (!target) return;
+              if (item.kicker) target.kicker = item.kicker;
+              if (item.title) target.title = item.title;
+              if (item.body) target.body = item.body;
+            });
             currentIndex.value = 0;
             activeStep.value = 'brand';
             scheduleSave();
@@ -1126,7 +1180,7 @@ ${aiInput.products || '（尚未填寫）'}
           saveStatus.value='儲存中…'; clearTimeout(saveTimer);
           saveTimer=setTimeout(()=>{
             try {
-              localStorage.setItem('soi-editor-project',JSON.stringify({form:{...form},slides:slides.value}));
+              localStorage.setItem('soi-editor-project',JSON.stringify({version:2,form:{...form},slides:slides.value}));
               saveStatus.value='內容已儲存在這台裝置';
             } catch(e) { saveStatus.value='內容已更新'; }
           },450);
@@ -1137,12 +1191,21 @@ ${aiInput.products || '（尚未填寫）'}
             if (!saved) return false;
             Object.assign(form,saved.form||{});
             if (Array.isArray(saved.slides)&&saved.slides.length) slides.value=saved.slides;
+            if (Number(saved.version || 1) < 2 && slides.value.length) {
+              const cover = slides.value.find(slide => slide.layout === 'cover');
+              if (cover) {
+                cover.kicker = `${form.brand || 'YOUR BRAND'} / ${form.category || 'BRAND FEATURE'}`;
+                cover.title = form.hook || form.tagline || '值得認識的日常選物。';
+                cover.body = form.tagline || '';
+              }
+              scheduleSave();
+            }
             return true;
           } catch(e) { return false; }
         }
         function resetProject() {
           if (!confirm('要清除目前內容並回到示範專案嗎？')) return;
-          Object.assign(form,defaultForm()); Object.assign(aiInput,{brand:'',products:'',url:'',tone:'editorial'}); aiResult.value=''; aiError.value=''; images.value=[]; currentIndex.value=0; activeStep.value='ai'; generateSlides(true); generateCaption(true); showToast('已建立新的空白專案');
+          Object.assign(form,defaultForm()); Object.assign(aiInput,{brand:'',products:'',url:'',tone:'living',hookStyle:'question'}); aiResult.value=''; aiError.value=''; images.value=[]; currentIndex.value=0; activeStep.value='ai'; generateSlides(true); generateCaption(true); showToast('已建立新的空白專案');
         }
         function updateScale() {
           if (artboardShell.value) previewScale.value=artboardShell.value.clientWidth/1080;
