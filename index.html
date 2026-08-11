@@ -278,7 +278,7 @@
                   <label class="block">
                     <span class="field-label">文案語氣</span>
                     <select v-model="aiInput.tone" class="field bg-white">
-                      <option value="sister">姐妹分享感｜像私訊推薦最近的發現</option>
+                      <option value="sister">姐妹分享感｜短句分行＋自然 emoji</option>
                       <option value="editorial">雜誌編輯感｜有觀點、有留白</option>
                       <option value="living">生活情境感｜像朋友分享，但有品味</option>
                       <option value="trend">韓系選題感｜明確、有趣、俐落</option>
@@ -530,7 +530,21 @@
                 <label class="block">
                   <span class="field-label">主標題 <small>{{ currentSlide.title.length }}/90</small></span>
                   <textarea v-model="currentSlide.title" @input="scheduleSave" maxlength="90" class="field min-h-[86px]"></textarea>
+                  <p v-if="currentSlide.layout==='cover'" class="mt-1.5 text-[10px] leading-4 text-[#96988f]">按 Enter 分行後，可在下方調整整組封面標題的大小。</p>
                 </label>
+                <div v-if="currentSlide.layout==='cover'" class="rounded-2xl border hairline bg-[#faf9f6] p-4">
+                  <div class="mb-3 flex items-center justify-between gap-3">
+                    <span class="field-label !mb-0">封面標題字級</span>
+                    <span class="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-[#6f7169]">{{ currentSlide.titleFontSize ? currentSlide.titleFontSize + ' px' : '自動 ' + coverFontSize + ' px' }}</span>
+                  </div>
+                  <input type="range" min="60" max="140" step="2" :value="currentSlide.titleFontSize || coverFontSize" @input="currentSlide.titleFontSize=Number($event.target.value); scheduleSave()" class="w-full accent-[#747b63]" aria-label="調整封面標題字級" />
+                  <div class="mt-3 grid grid-cols-4 gap-2">
+                    <button @click="currentSlide.titleFontSize=72; scheduleSave()" class="rounded-xl bg-white px-2 py-2 text-[10px] font-semibold">小</button>
+                    <button @click="currentSlide.titleFontSize=96; scheduleSave()" class="rounded-xl bg-white px-2 py-2 text-[10px] font-semibold">中</button>
+                    <button @click="currentSlide.titleFontSize=120; scheduleSave()" class="rounded-xl bg-white px-2 py-2 text-[10px] font-semibold">大</button>
+                    <button @click="currentSlide.titleFontSize=null; scheduleSave()" class="rounded-xl bg-[#eff0e8] px-2 py-2 text-[10px] font-semibold text-[#626a52]">自動</button>
+                  </div>
+                </div>
                 <label class="block">
                   <span class="field-label">內文 <small>{{ currentSlide.body.length }}/180</small></span>
                   <textarea v-model="currentSlide.body" @input="scheduleSave" maxlength="180" class="field min-h-[126px]"></textarea>
@@ -604,7 +618,7 @@
                     </div>
 
                     <div class="absolute bottom-[76px] left-[82px] right-[82px] top-[400px] flex flex-col">
-                      <h3 class="cover-title art-serif max-w-[820px] whitespace-pre-line" :style="{fontSize:coverFontSize+'px'}">{{ currentSlide.title }}</h3>
+                      <h3 class="cover-title art-serif max-w-[820px] whitespace-pre-line" :style="{fontSize:(currentSlide.titleFontSize || coverFontSize)+'px'}">{{ currentSlide.title }}</h3>
                       <div class="mt-auto grid grid-cols-[1fr_auto] items-end gap-14 border-t border-current/50 pt-8">
                         <div class="max-w-[690px]">
                           <p class="mb-4 text-[18px] font-semibold tracking-[.14em]">{{ form.brand || 'BRAND FEATURE' }}</p>
@@ -874,7 +888,7 @@
         });
         const researchPrompt = computed(() => {
           const toneMap = {
-            sister: '像把最近發現的好東西私訊給姐妹：自然、親近、帶一點個人觀察，先聊日常情境，再說為什麼會注意到它；有品味但不端著，也不要硬推銷',
+            sister: '像把最近發現的好東西私訊給姐妹：使用有節奏的短句與分行，先丟出最吸引人的商品特色，再說它放進日常有什麼好處；語氣自然、有一點興奮感，可加入適量 emoji，但不要像制式業配',
             editorial: '獨立生活雜誌的編輯語氣：有觀點、有留白，不像購物台，也不要過度煽情',
             living: '有品味的生活選品語氣：先說人會遇到的生活情境，再自然帶出商品；像朋友分享，但不口語過頭',
             trend: '韓系社群雜誌的選題語氣：標題明確、有趣、帶一點輕鬆感；內文俐落，不堆網路流行語',
@@ -917,6 +931,19 @@ ${aiInput.products || '（尚未填寫）'}
 18. 整體要像在跟姐妹分享最近發現的品牌：可以用「最近注意到」、「第一眼會被吸引的是」、「如果你也喜歡……」這類自然句型，但不要每頁重複同一個開頭。
 19. 避免官方新聞稿用語，例如「秉持理念」、「致力於」、「完美結合」、「不容錯過」、「必入手」；也不要命令讀者購買。
 20. 可以有一點第一人稱觀察，但不能捏造購買、穿戴、使用、到店或與品牌接觸的經驗。每頁以 2 至 4 個短句為主。
+21. 文案節奏優先使用「亮點短標／可驗證的商品特色／這個特色帶來的日常好處」；不要把多個賣點塞進一個長句。
+22. 內文要像社群圖文：一句一行，每行約 6 至 18 個中文字。需要分行時，請在合法 JSON 字串中使用 \\n，不要直接插入會破壞 JSON 格式的換行。
+23. 每頁最多使用 1 至 2 個適合語意的 emoji，例如 ✨、💕、🤎、☺️、🔥；不必每句都有，也不要連續堆疊。
+24. 如果商品有多個顏色，且官方資料能確認，請用「顏色名稱／1 至 2 行色彩印象或搭配感」分開介紹。尺寸、背帶長度、重量等規格請獨立成行，保留原始單位，不要改寫或猜測。
+25. 可以把「輕、容量夠、拉鍊、內袋、防潑水」等特色轉成通勤、搭車或旅行情境，但前提是該特色有可靠來源；不能把合理推測寫成已實際使用的心得。
+
+【節奏示意】
+只參考結構與口吻，不要照抄句子，也不要套用示意中的商品特色：
+最讓人心動的地方
+藏在打開後的小細節✨
+
+輕巧、容量也剛剛好
+上班或短途出門都很方便
 
 【輸出要求】
 只輸出一個合法 JSON 物件，不要加 Markdown、不要使用三個反引號、不要補充說明。所有欄位都必須存在；沒有資料時使用空字串或空陣列。
@@ -926,22 +953,22 @@ ${aiInput.products || '（尚未填寫）'}
   "city": "城市, 國家",
   "category": "英文分類，例如 LIFESTYLE / BAGS",
   "series": "只使用 BRAND JOURNAL、SOI BRAND、SOI PICKS、BANGKOK FIND、EVERYDAY NOTE 其中一個",
-  "hook": "12 至 22 字的封面 Hook，不重複品牌名，讓人想繼續往下滑",
-  "tagline": "25 至 45 字的一句話介紹，優先說明這次商品最吸引人的特色",
+  "hook": "10 至 20 字的封面 Hook，可使用一次換行與最多一個 emoji；不重複品牌名，直接勾起對商品特色的好奇",
+  "tagline": "20 至 40 字的短句介紹，優先說明這次商品最吸引人的特色",
   "story": "40 至 65 字、最多兩個短段落的品牌背景，只保留與商品有關的可驗證內容",
   "philosophy": "40 至 70 字、最多兩個短段落的商品設計、材質、功能或特色",
   "reason": "35 至 60 字、最多兩個短段落的 SOI 選物理由草稿",
   "products": [
-    {"name": "商品正式名稱", "description": "25 至 50 字、優先整理材質、尺寸、容量、功能、顏色或設計細節等可驗證特色"}
+    {"name": "商品正式名稱", "description": "25 至 50 字、用短句整理材質、尺寸、容量、功能、顏色或設計細節等可驗證特色"}
   ],
   "source_label": "適合放在版面頁尾的短來源標示",
   "sources": [
     {"title": "來源名稱", "url": "完整網址"}
   ],
   "carousel": [
-    {"kicker": "第 2 頁起的短標示", "title": "12 至 22 字、自然好讀的頁面標題", "body": "28 至 60 字，只講一個重點；必要時分成兩個短段落"}
+    {"kicker": "第 2 頁起的短標示", "title": "6 至 16 字、像聊天時會說的吸睛短標，可使用最多一個 emoji", "body": "24 至 55 字，只講一個商品重點；一句一行，使用 \\n 分成 2 至 4 行"}
   ],
-  "caption": "120 至 180 字的精簡 IG 文案：像分享給姐妹，第一段是 Hook，全文 3 至 4 個短段落、段落間空一行，最後加入一句自然引導與 5 至 8 個 hashtag"
+  "caption": "120 至 180 字的精簡 IG 文案：像分享給姐妹，短句分行，第一段是 Hook，全文 3 至 4 個短段落、段落間空一行，最後加入一句自然引導與 5 至 8 個 hashtag"
 }
 
 carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，內容以商品特色為主，依序涵蓋：第一眼注意到的商品亮點、必要的品牌背景、外型與設計細節、材質／尺寸／容量／功能等已查證資訊、放進哪些日常情境會很自然、SOI 想分享它的理由。若某項資料查不到就略過，不得自行補寫；頁數不足時合併相近主題。不要包含封面與最後 CTA。`;
@@ -960,7 +987,7 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，內容
           const detailsTitle = form.language === 'en' ? 'Details that reveal themselves over time.' : '第一眼好看，細看還有這些小地方。';
           const reasonTitle = form.language === 'en' ? 'Why it belongs in our edit.' : '我會想把它分享給妳，是因為——';
           return [
-            { id: crypto.randomUUID(), layout:'cover', kicker:`${form.series || labels.value.cover} / ${form.category}`, title:form.hook || form.tagline || '值得認識的日常選物。', body:form.tagline, footer:form.city || 'BANGKOK, THAILAND', mediaIndex:0 },
+            { id: crypto.randomUUID(), layout:'cover', kicker:`${form.series || labels.value.cover} / ${form.category}`, title:form.hook || form.tagline || '值得認識的日常選物。', body:form.tagline, footer:form.city || 'BANGKOK, THAILAND', mediaIndex:0, titleFontSize:null },
             { id: crypto.randomUUID(), layout:'intro', kicker:labels.value.story, title:storyTitle, body:form.story, footer:form.source || 'BRAND OFFICIAL / SOI EDIT', mediaIndex:1 },
             { id: crypto.randomUUID(), layout:'quote', kicker:labels.value.quote, title:quoteTitle, body:form.philosophy, footer:brand, mediaIndex:2 },
             { id: crypto.randomUUID(), layout:'details', kicker:labels.value.details, title:detailsTitle, body:form.philosophy, footer:'FORM / MATERIAL / EVERYDAY', mediaIndex:2 },
