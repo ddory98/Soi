@@ -136,6 +136,28 @@
     .crop-image { will-change: transform, object-position; }
     .artboard.crop-enabled { cursor: grab; touch-action: none; user-select: none; }
     .artboard.crop-enabled.crop-dragging { cursor: grabbing; }
+    .collage-frame {
+      position: absolute;
+      overflow: hidden;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      background: rgba(32,35,31,.07);
+      transition: outline-color .16s ease, box-shadow .16s ease;
+    }
+    .collage-frame:active { cursor: grabbing; }
+    .collage-frame.collage-selected {
+      outline: 6px solid var(--accent, #8f9677);
+      outline-offset: 7px;
+    }
+    .collage-frame.collage-stack {
+      border: 14px solid rgba(255,255,255,.96);
+      box-shadow: 20px 24px 50px rgba(31,32,27,.18);
+    }
+    .collage-note {
+      background: var(--paper, #f4f1e8);
+      backdrop-filter: blur(8px);
+    }
     .image-wash::after {
       content: '';
       position: absolute;
@@ -570,12 +592,98 @@
                   <span class="field-label">頁尾文字</span>
                   <input v-model="currentSlide.footer" @input="scheduleSave" class="field" />
                 </label>
-                <label class="block">
+                <label v-if="currentSlide.layout!=='collage'" class="block">
                   <span class="field-label">{{ currentSlide.layout==='colors' ? '第一格照片' : '使用照片' }}</span>
                   <select v-model.number="currentSlide.mediaIndex" @change="scheduleSave" class="field">
                     <option v-for="(photo,index) in availableMedia" :key="index" :value="index">照片 {{ index+1 }}{{ images.length ? '' : '（示範）' }}</option>
                   </select>
                 </label>
+                <div v-if="currentSlide.layout==='collage' && activeCollageItem" class="space-y-4 rounded-2xl border hairline bg-[#faf9f6] p-4">
+                  <label class="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#c9cabf] bg-white px-4 py-3 text-[11px] font-semibold text-[#626a52] transition hover:bg-[#f5f5ef]">
+                    <input class="hidden" type="file" accept="image/*" multiple @change="handleFiles" />
+                    <span class="text-base leading-none">＋</span><span>從手機相簿新增照片</span>
+                  </label>
+                  <div>
+                    <div class="mb-3 flex items-center justify-between gap-3">
+                      <span class="field-label !mb-0">拼貼照片數量</span>
+                      <span class="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-[#6f7169]">{{ currentSlide.collageCount || 3 }} 張</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                      <button v-for="count in [2,3,4]" :key="count" @click="setCollageCount(count)" class="rounded-xl px-2 py-2.5 text-[10px] font-semibold transition" :class="Number(currentSlide.collageCount || 3)===count ? 'bg-ink text-white' : 'bg-white text-[#6f7169]'">{{ count }} 張</button>
+                    </div>
+                  </div>
+                  <div>
+                    <span class="field-label">拼貼版型</span>
+                    <div class="grid grid-cols-3 gap-2">
+                      <button @click="currentSlide.collagePreset='editorial'; scheduleSave()" class="rounded-xl px-2 py-2.5 text-[10px] font-semibold transition" :class="(!currentSlide.collagePreset || currentSlide.collagePreset==='editorial') ? 'bg-ink text-white' : 'bg-white text-[#6f7169]'">編輯感</button>
+                      <button @click="currentSlide.collagePreset='stack'; scheduleSave()" class="rounded-xl px-2 py-2.5 text-[10px] font-semibold transition" :class="currentSlide.collagePreset==='stack' ? 'bg-ink text-white' : 'bg-white text-[#6f7169]'">不對稱</button>
+                      <button @click="currentSlide.collagePreset='grid'; scheduleSave()" class="rounded-xl px-2 py-2.5 text-[10px] font-semibold transition" :class="currentSlide.collagePreset==='grid' ? 'bg-ink text-white' : 'bg-white text-[#6f7169]'">整齊格狀</button>
+                    </div>
+                  </div>
+                  <div>
+                    <span class="field-label">選擇要編輯的照片</span>
+                    <div class="grid grid-cols-4 gap-2">
+                      <button v-for="(_,index) in collageItems(currentSlide)" :key="index" @click="currentSlide.collageActive=index; scheduleSave()" class="rounded-xl px-2 py-2.5 text-[10px] font-semibold transition" :class="Number(currentSlide.collageActive || 0)===index ? 'bg-sage text-white' : 'bg-white text-[#6f7169]'">照片 {{ index+1 }}</button>
+                    </div>
+                    <p class="mt-2 text-[10px] leading-4 text-[#96988f]">也可以直接點右側拼貼中的照片切換。</p>
+                  </div>
+                  <label class="block">
+                    <span class="field-label">這一格使用的照片</span>
+                    <select v-model.number="activeCollageItem.mediaIndex" @change="scheduleSave" class="field">
+                      <option v-for="(photo,index) in availableMedia" :key="index" :value="index">照片 {{ index+1 }}{{ images.length ? '' : '（示範）' }}</option>
+                    </select>
+                  </label>
+                  <div class="border-t border-[#deded7] pt-4">
+                    <div class="mb-4 flex items-start justify-between gap-3">
+                      <div>
+                        <span class="field-label !mb-0">這張照片的裁切</span>
+                        <p class="mt-1 text-[10px] leading-4 text-[#96988f]">直接拖曳右側照片，手機也能操作。</p>
+                      </div>
+                      <button @click="resetCollageCrop" class="shrink-0 rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold text-[#6f7169]">置中重設</button>
+                    </div>
+                    <div class="space-y-4">
+                      <label class="block">
+                        <span class="mb-2 flex items-center justify-between text-[10px] font-semibold"><span>放大裁切</span><span>{{ Math.round((activeCollageItem.imageZoom || 1) * 100) }}%</span></span>
+                        <input type="range" min="1" max="2.2" step="0.05" v-model.number="activeCollageItem.imageZoom" @input="scheduleSave" class="w-full accent-[#747b63]" />
+                      </label>
+                      <label class="block">
+                        <span class="mb-2 flex items-center justify-between text-[10px] font-semibold"><span>水平位置</span><span>{{ Math.round(activeCollageItem.imageX ?? 50) }}%</span></span>
+                        <input type="range" min="0" max="100" step="1" v-model.number="activeCollageItem.imageX" @input="scheduleSave" class="w-full accent-[#747b63]" />
+                      </label>
+                      <label class="block">
+                        <span class="mb-2 flex items-center justify-between text-[10px] font-semibold"><span>垂直位置</span><span>{{ Math.round(activeCollageItem.imageY ?? 50) }}%</span></span>
+                        <input type="range" min="0" max="100" step="1" v-model.number="activeCollageItem.imageY" @input="scheduleSave" class="w-full accent-[#747b63]" />
+                      </label>
+                    </div>
+                  </div>
+                  <div class="border-t border-[#deded7] pt-4">
+                    <div class="mb-4 flex items-start justify-between gap-3">
+                      <div>
+                        <span class="field-label !mb-0">照片框大小與位置</span>
+                        <p class="mt-1 text-[10px] leading-4 text-[#96988f]">讓照片錯位、重疊或微微旋轉，更像雜誌拼貼。</p>
+                      </div>
+                      <button @click="resetCollageFrame" class="shrink-0 rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold text-[#6f7169]">版位重設</button>
+                    </div>
+                    <div class="space-y-4">
+                      <label class="block">
+                        <span class="mb-2 flex items-center justify-between text-[10px] font-semibold"><span>照片框大小</span><span>{{ Math.round((activeCollageItem.frameScale || 1) * 100) }}%</span></span>
+                        <input type="range" min="0.7" max="1.3" step="0.02" v-model.number="activeCollageItem.frameScale" @input="scheduleSave" class="w-full accent-[#747b63]" />
+                      </label>
+                      <label class="block">
+                        <span class="mb-2 flex items-center justify-between text-[10px] font-semibold"><span>左右移動</span><span>{{ Math.round(activeCollageItem.frameX || 0) }}</span></span>
+                        <input type="range" min="-180" max="180" step="4" v-model.number="activeCollageItem.frameX" @input="scheduleSave" class="w-full accent-[#747b63]" />
+                      </label>
+                      <label class="block">
+                        <span class="mb-2 flex items-center justify-between text-[10px] font-semibold"><span>上下移動</span><span>{{ Math.round(activeCollageItem.frameY || 0) }}</span></span>
+                        <input type="range" min="-180" max="180" step="4" v-model.number="activeCollageItem.frameY" @input="scheduleSave" class="w-full accent-[#747b63]" />
+                      </label>
+                      <label class="block">
+                        <span class="mb-2 flex items-center justify-between text-[10px] font-semibold"><span>旋轉角度</span><span>{{ Number(activeCollageItem.frameRotate || 0).toFixed(1) }}°</span></span>
+                        <input type="range" min="-10" max="10" step="0.5" v-model.number="activeCollageItem.frameRotate" @input="scheduleSave" class="w-full accent-[#747b63]" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
                 <div v-if="currentSlide.layout==='colors'" class="rounded-2xl border hairline bg-[#faf9f6] p-4">
                   <div class="mb-3 flex items-center justify-between gap-3">
                     <span class="field-label !mb-0">產品顏色格數</span>
@@ -613,7 +721,10 @@
                   <button @click="duplicateSlide" class="rounded-2xl border hairline bg-white px-4 py-3 text-xs font-medium transition hover:bg-mist">複製這一頁</button>
                   <button @click="deleteSlide" :disabled="slides.length<=2" class="rounded-2xl border border-[#d8c7bf] bg-[#fbf5f2] px-4 py-3 text-xs font-medium text-[#9a5f4b] transition hover:bg-[#f7ebe6] disabled:opacity-40">刪除這一頁</button>
                 </div>
-                <button @click="addColorSlide" class="w-full rounded-2xl bg-[#eff0e8] px-4 py-3 text-xs font-semibold text-[#626a52] transition hover:bg-[#e5e8dc]">＋ 在後面新增產品顏色頁</button>
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <button @click="addCollageSlide" class="rounded-2xl bg-ink px-4 py-3 text-xs font-semibold text-white transition hover:bg-[#373a34]">＋ 新增雜誌拼貼頁</button>
+                  <button @click="addColorSlide" class="rounded-2xl bg-[#eff0e8] px-4 py-3 text-xs font-semibold text-[#626a52] transition hover:bg-[#e5e8dc]">＋ 新增產品顏色頁</button>
+                </div>
                 <p class="rounded-2xl bg-[#f1f0ea] p-4 text-[11px] leading-5 text-[#777970]">下方縮圖可以拖曳排序；手機上可使用左右箭頭移動頁面。</p>
               </template>
               <details class="group rounded-[18px] border hairline bg-white/70 p-4">
@@ -772,6 +883,25 @@
                   <div class="absolute bottom-[46px] left-[70px] right-[70px] flex justify-between art-small"><span>{{ currentSlide.footer }}</span><span>FOUND BY SOI</span></div>
                 </template>
 
+                <template v-else-if="currentSlide.layout==='collage'">
+                  <div class="absolute inset-0" :class="form.theme==='notes' ? 'paper-grid' : ''"></div>
+                  <div class="absolute left-[70px] right-[70px] top-[58px] flex items-center justify-between border-t border-current/35 pt-5 art-small">
+                    <span>{{ currentSlide.kicker }}</span><span>FOUND BY SOI</span>
+                  </div>
+                  <h3 class="art-serif absolute left-[70px] right-[70px] top-[128px] whitespace-pre-line leading-[1.02] tracking-[-.028em]" :style="titleStyle(currentSlide,78)">{{ currentSlide.title }}</h3>
+                  <div v-for="(item,index) in collageItems(currentSlide)" :key="index"
+                    class="collage-frame"
+                    :class="[{ 'collage-selected': !exporting && Number(currentSlide.collageActive || 0)===index, 'collage-stack': currentSlide.collagePreset==='stack' }]"
+                    :style="collageFrameStyle(currentSlide,index)"
+                    @pointerdown.stop="startCollageDrag($event,index)" @pointermove.stop="moveCollageDrag($event,index)" @pointerup.stop="endCollageDrag($event,index)" @pointercancel.stop="endCollageDrag($event,index)">
+                    <img :src="mediaSource(item.mediaIndex)" alt="拼貼照片" class="image-fill crop-image" :style="collageImageStyle(item)" draggable="false" />
+                  </div>
+                  <div v-if="currentSlide.body" class="collage-note absolute bottom-[112px] left-[70px] z-20 max-w-[690px] px-7 py-5">
+                    <p class="whitespace-pre-line text-[24px] leading-[1.62]">{{ currentSlide.body }}</p>
+                  </div>
+                  <div class="absolute bottom-[48px] left-[70px] right-[70px] z-20 flex justify-between border-t border-current/30 pt-4 art-small"><span>{{ currentSlide.footer }}</span><span>SOI PHOTO EDIT</span></div>
+                </template>
+
                 <template v-else-if="currentSlide.layout==='split'">
                   <div class="absolute left-0 top-0 h-full w-[46%] overflow-hidden"><img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌情境" class="image-fill crop-image" :style="imageStyle(currentSlide)" draggable="false" /></div>
                   <div class="absolute left-[52%] right-[68px] top-[72px] art-small flex justify-between"><span>{{ currentSlide.kicker }}</span><span>SOI EDIT</span></div>
@@ -826,7 +956,7 @@
                     <span class="absolute inset-x-2 bottom-2 text-[6px] font-semibold uppercase leading-tight text-white">{{ slide.title.slice(0,34) }}</span>
                   </template>
                   <template v-else>
-                    <img v-if="['intro','details','curation','colors','split','closing'].includes(slide.layout)" :src="mediaSource(slide.mediaIndex)" alt="" class="h-[58%] w-full object-cover" />
+                    <img v-if="['intro','details','curation','colors','collage','split','closing'].includes(slide.layout)" :src="mediaSource(slide.mediaIndex)" alt="" class="h-[58%] w-full object-cover" />
                     <span class="block px-2 pt-2 text-[6px] font-semibold uppercase leading-tight" :style="{color:selectedPalette.ink}">{{ slide.title.slice(0,34) }}</span>
                   </template>
                 </span>
@@ -917,6 +1047,7 @@
         let toastTimer;
         let saveTimer;
         let cropDrag = null;
+        let collageDrag = null;
 
         const makeDemoSvg = (start, end, shape, label) => {
           const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1500" viewBox="0 0 1200 1500"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${start}"/><stop offset="1" stop-color="${end}"/></linearGradient><filter id="n"><feTurbulence baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .05"/></feComponentTransfer></filter></defs><rect width="1200" height="1500" fill="url(#g)"/><rect width="1200" height="1500" filter="url(#n)" opacity=".55"/><${shape}/><text x="70" y="1425" fill="rgba(255,255,255,.68)" font-family="Arial" font-size="22" letter-spacing="8">${label}</text></svg>`;
@@ -955,11 +1086,17 @@
         });
         const currentDefaultTitleFontSize = computed(() => {
           if (currentSlide.value.layout === 'cover') return coverFontSize.value;
-          const sizes = { intro:88, quote:82, details:74, curation:82, products:76, colors:72, split:78, closing:104, cta:105 };
+          const sizes = { intro:88, quote:82, details:74, curation:82, products:76, colors:72, collage:78, split:78, closing:104, cta:105 };
           return sizes[currentSlide.value.layout] || 82;
         });
         const cityShort = computed(() => (form.city || 'BANGKOK').split(',')[0].toUpperCase());
         const availableMedia = computed(() => images.value.length ? images.value : demoImages.map((src,index)=>({src,name:`示範圖 ${index+1}`})));
+        const activeCollageItem = computed(() => {
+          if (currentSlide.value.layout !== 'collage') return null;
+          const items = collageItems(currentSlide.value);
+          const active = Math.min(items.length - 1, Math.max(0, Number(currentSlide.value.collageActive || 0)));
+          return items[active] || null;
+        });
         const productItems = computed(() => {
           const parsed = (form.productsText || '').split('\n').filter(Boolean).map(line => {
             const [name, ...rest] = line.split(/[｜|]/);
@@ -1268,6 +1405,110 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁。先依
           };
         }
 
+        function collageItems(slide) {
+          if (!slide) return [];
+          const count = Math.min(4, Math.max(2, Number(slide.collageCount || 3)));
+          if (!Array.isArray(slide.collageItems)) slide.collageItems = [];
+          while (slide.collageItems.length < count) {
+            const index = slide.collageItems.length;
+            slide.collageItems.push({
+              mediaIndex:(Number(slide.mediaIndex || 0) + index) % Math.max(1, availableMedia.value.length),
+              imageX:50,
+              imageY:50,
+              imageZoom:1,
+              frameX:0,
+              frameY:0,
+              frameScale:1,
+              frameRotate:0
+            });
+          }
+          slide.collageItems.forEach((item,index) => {
+            if (!item || typeof item !== 'object') slide.collageItems[index] = { mediaIndex:index, imageX:50, imageY:50, imageZoom:1, frameX:0, frameY:0, frameScale:1, frameRotate:0 };
+            else {
+              if (!Number.isFinite(Number(item.mediaIndex))) item.mediaIndex = index;
+              if (!Number.isFinite(Number(item.imageX))) item.imageX = 50;
+              if (!Number.isFinite(Number(item.imageY))) item.imageY = 50;
+              if (!Number.isFinite(Number(item.imageZoom))) item.imageZoom = 1;
+              if (!Number.isFinite(Number(item.frameX))) item.frameX = 0;
+              if (!Number.isFinite(Number(item.frameY))) item.frameY = 0;
+              if (!Number.isFinite(Number(item.frameScale))) item.frameScale = 1;
+              if (!Number.isFinite(Number(item.frameRotate))) item.frameRotate = 0;
+            }
+          });
+          return slide.collageItems.slice(0,count);
+        }
+
+        function collageImageStyle(item) {
+          const x = Math.min(100, Math.max(0, Number(item?.imageX ?? 50)));
+          const y = Math.min(100, Math.max(0, Number(item?.imageY ?? 50)));
+          const zoom = Math.min(2.2, Math.max(1, Number(item?.imageZoom || 1)));
+          return {
+            objectPosition:`${x}% ${y}%`,
+            transform:`scale(${zoom})`,
+            transformOrigin:`${x}% ${y}%`
+          };
+        }
+
+        function collageFrameStyle(slide,index) {
+          const count = Math.min(4, Math.max(2, Number(slide?.collageCount || 3)));
+          const preset = ['editorial','stack','grid'].includes(slide?.collagePreset) ? slide.collagePreset : 'editorial';
+          const layouts = {
+            editorial: {
+              2:[{x:70,y:350,w:585,h:735,r:-1},{x:690,y:405,w:320,h:505,r:2}],
+              3:[{x:70,y:355,w:550,h:700,r:-1},{x:670,y:315,w:340,h:390,r:1},{x:610,y:760,w:400,h:335,r:-2}],
+              4:[{x:70,y:365,w:430,h:430,r:-1},{x:540,y:320,w:470,h:330,r:1},{x:105,y:825,w:335,h:275,r:2},{x:485,y:690,w:525,h:410,r:-1}]
+            },
+            stack: {
+              2:[{x:105,y:380,w:565,h:665,r:-4},{x:610,y:430,w:350,h:500,r:5}],
+              3:[{x:70,y:390,w:520,h:630,r:-4},{x:555,y:335,w:390,h:470,r:4},{x:570,y:775,w:360,h:325,r:-2}],
+              4:[{x:70,y:370,w:430,h:455,r:-4},{x:520,y:335,w:430,h:360,r:4},{x:120,y:780,w:355,h:330,r:3},{x:505,y:700,w:450,h:410,r:-3}]
+            },
+            grid: {
+              2:[{x:70,y:350,w:460,h:750,r:0},{x:550,y:350,w:460,h:750,r:0}],
+              3:[{x:70,y:350,w:535,h:750,r:0},{x:625,y:350,w:385,h:365,r:0},{x:625,y:735,w:385,h:365,r:0}],
+              4:[{x:70,y:350,w:460,h:365,r:0},{x:550,y:350,w:460,h:365,r:0},{x:70,y:735,w:460,h:365,r:0},{x:550,y:735,w:460,h:365,r:0}]
+            }
+          };
+          const frame = layouts[preset][count][index] || layouts.editorial[3][0];
+          const item = collageItems(slide)[index] || {};
+          const frameX = Math.min(180,Math.max(-180,Number(item.frameX || 0)));
+          const frameY = Math.min(180,Math.max(-180,Number(item.frameY || 0)));
+          const frameScale = Math.min(1.3,Math.max(.7,Number(item.frameScale || 1)));
+          const frameRotate = Math.min(10,Math.max(-10,Number(item.frameRotate || 0)));
+          return {
+            left:`${frame.x + frameX}px`,
+            top:`${frame.y + frameY}px`,
+            width:`${frame.w}px`,
+            height:`${frame.h}px`,
+            transform:`rotate(${frame.r + frameRotate}deg) scale(${frameScale})`,
+            transformOrigin:'center center',
+            zIndex:String(index + 2)
+          };
+        }
+
+        function setCollageCount(count) {
+          const slide = currentSlide.value;
+          if (slide.layout !== 'collage') return;
+          slide.collageCount = Math.min(4, Math.max(2, Number(count || 3)));
+          collageItems(slide);
+          slide.collageActive = Math.min(slide.collageCount - 1, Math.max(0, Number(slide.collageActive || 0)));
+          scheduleSave();
+        }
+
+        function resetCollageCrop() {
+          if (!activeCollageItem.value) return;
+          Object.assign(activeCollageItem.value,{imageX:50,imageY:50,imageZoom:1});
+          scheduleSave();
+          showToast('這張照片已置中');
+        }
+
+        function resetCollageFrame() {
+          if (!activeCollageItem.value) return;
+          Object.assign(activeCollageItem.value,{frameX:0,frameY:0,frameScale:1,frameRotate:0});
+          scheduleSave();
+          showToast('照片框已回到原版位');
+        }
+
         function colorGridStyle(slide) {
           const count = Math.min(6,Math.max(2,Number(slide?.colorCount || 3)));
           const columns = count === 2 || count === 4 ? 2 : 3;
@@ -1338,6 +1579,49 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁。先依
           scheduleSave();
         }
 
+        function startCollageDrag(event,index) {
+          if (currentSlide.value.layout !== 'collage' || (event.pointerType === 'mouse' && event.button !== 0)) return;
+          const slide = currentSlide.value;
+          const item = collageItems(slide)[index];
+          if (!item) return;
+          slide.collageActive = index;
+          collageDrag = {
+            slideId:slide.id,
+            itemIndex:index,
+            pointerId:event.pointerId,
+            clientX:event.clientX,
+            clientY:event.clientY,
+            imageX:Number(item.imageX ?? 50),
+            imageY:Number(item.imageY ?? 50)
+          };
+          isCropping.value = true;
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+          event.preventDefault();
+        }
+
+        function moveCollageDrag(event,index) {
+          if (!collageDrag || collageDrag.pointerId !== event.pointerId || collageDrag.itemIndex !== index) return;
+          const slide = slides.value.find(item => item.id === collageDrag.slideId);
+          const item = collageItems(slide)[index];
+          const rect = event.currentTarget.getBoundingClientRect();
+          if (!item || !rect.width || !rect.height) return;
+          const zoom = Math.max(1,Number(item.imageZoom || 1));
+          const dx = (event.clientX - collageDrag.clientX) * 100 / rect.width / zoom;
+          const dy = (event.clientY - collageDrag.clientY) * 100 / rect.height / zoom;
+          item.imageX = Math.round(Math.min(100,Math.max(0,collageDrag.imageX - dx)));
+          item.imageY = Math.round(Math.min(100,Math.max(0,collageDrag.imageY - dy)));
+          scheduleSave();
+          event.preventDefault();
+        }
+
+        function endCollageDrag(event,index) {
+          if (!collageDrag || collageDrag.pointerId !== event.pointerId || collageDrag.itemIndex !== index) return;
+          if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+          collageDrag = null;
+          isCropping.value = false;
+          scheduleSave();
+        }
+
         async function compressImage(file) {
           return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -1364,7 +1648,7 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁。先依
         }
 
         async function addFiles(fileList) {
-          const files = Array.from(fileList || []).filter(f=>f.type.startsWith('image/')).slice(0, Math.max(0, 10-images.value.length));
+          const files = Array.from(fileList || []).filter(f=>f.type.startsWith('image/')).slice(0, Math.max(0, 20-images.value.length));
           if (!files.length) return;
           showToast('正在整理照片…');
           for (const file of files) {
@@ -1396,6 +1680,33 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁。先依
           slides.value.splice(currentIndex.value+1,0,copy);
           currentIndex.value += 1;
           scheduleSave(); showToast('已複製頁面');
+        }
+        function addCollageSlide() {
+          const mediaTotal = Math.max(1,availableMedia.value.length);
+          const slide = {
+            id:crypto.randomUUID(),
+            layout:'collage',
+            kicker:'PHOTO EDIT',
+            title:'把喜歡的細節，\n放在同一頁慢慢看。',
+            body:'一張看整體，幾張看細節。\n像翻雜誌一樣，把商品的不同角度收在一起。',
+            footer:form.brand || 'FOUND BY SOI',
+            mediaIndex:0,
+            collageCount:3,
+            collagePreset:'editorial',
+            collageActive:0,
+            collageItems:[
+              {mediaIndex:0,imageX:50,imageY:50,imageZoom:1,frameX:0,frameY:0,frameScale:1,frameRotate:0},
+              {mediaIndex:1 % mediaTotal,imageX:50,imageY:50,imageZoom:1,frameX:0,frameY:0,frameScale:1,frameRotate:0},
+              {mediaIndex:2 % mediaTotal,imageX:50,imageY:50,imageZoom:1,frameX:0,frameY:0,frameScale:1,frameRotate:0}
+            ],
+            titleFontSize:null
+          };
+          const insertIndex = currentSlide.value.layout === 'cta' ? currentIndex.value : currentIndex.value + 1;
+          slides.value.splice(insertIndex,0,slide);
+          currentIndex.value = insertIndex;
+          activeStep.value = 'edit';
+          scheduleSave();
+          showToast('已新增雜誌拼貼頁');
         }
         function addColorSlide() {
           const enteredColors = String(form.colorsText || '').split('\n').filter(line=>line.trim()).length;
@@ -1478,7 +1789,7 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁。先依
           saveStatus.value='儲存中…'; clearTimeout(saveTimer);
           saveTimer=setTimeout(()=>{
             try {
-              localStorage.setItem('soi-editor-project',JSON.stringify({version:5,form:{...form},slides:slides.value}));
+              localStorage.setItem('soi-editor-project',JSON.stringify({version:6,form:{...form},slides:slides.value}));
               saveStatus.value='內容已儲存在這台裝置';
             } catch(e) { saveStatus.value='內容已更新'; }
           },450);
@@ -1535,8 +1846,8 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁。先依
 
         return {
           steps,themes,palettes,form,activeStep,aiInput,aiResult,aiError,promptCopied,images,slides,currentIndex,dragSlideIndex,dragging,isCropping,exporting,exportMessage,toast,saveStatus,artboard,artboardShell,
-          selectedPalette,artboardStyle,currentSlide,cropSupported,coverFontSize,currentDefaultTitleFontSize,cityShort,availableMedia,productItems,colorItems,researchPrompt,
-          generateSlides,updateSeries,syncCoverText,generateCaption,copyCaption,copyResearchPrompt,applyAIResult,mediaSource,imageStyle,colorGridStyle,titleStyle,resetImageCrop,startImageDrag,moveImageDrag,endImageDrag,handleFiles,onDrop,removeImage,makeCover,moveSlide,dropSlide,duplicateSlide,addColorSlide,deleteSlide,downloadCurrent,downloadAll,resetProject,scheduleSave
+          selectedPalette,artboardStyle,currentSlide,cropSupported,coverFontSize,currentDefaultTitleFontSize,cityShort,availableMedia,activeCollageItem,productItems,colorItems,researchPrompt,
+          generateSlides,updateSeries,syncCoverText,generateCaption,copyCaption,copyResearchPrompt,applyAIResult,mediaSource,imageStyle,collageItems,collageImageStyle,collageFrameStyle,setCollageCount,resetCollageCrop,resetCollageFrame,colorGridStyle,titleStyle,resetImageCrop,startImageDrag,moveImageDrag,endImageDrag,startCollageDrag,moveCollageDrag,endCollageDrag,handleFiles,onDrop,removeImage,makeCover,moveSlide,dropSlide,duplicateSlide,addCollageSlide,addColorSlide,deleteSlide,downloadCurrent,downloadAll,resetProject,scheduleSave
         };
       }
     }).mount('#app');
