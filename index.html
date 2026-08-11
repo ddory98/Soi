@@ -141,8 +141,8 @@
       pointer-events: none;
     }
     .layout-cover .cover-title {
-      line-height: .86;
-      letter-spacing: -.052em;
+      line-height: 1.08;
+      letter-spacing: -.038em;
       overflow-wrap: anywhere;
       text-wrap: balance;
     }
@@ -158,11 +158,22 @@
     }
     .cover-ui-light { color: #fffdf7; text-shadow: 0 2px 24px rgba(9,11,8,.22); }
     .cover-ui-dark { color: #20231f; text-shadow: 0 2px 22px rgba(255,255,255,.2); }
-    .layout-cover.object .cover-title { font-family: Inter, "Noto Sans TC", sans-serif; font-weight: 600; letter-spacing: -.06em; }
+    .layout-cover.object .cover-title { font-family: Inter, "Noto Sans TC", sans-serif; font-weight: 600; line-height: 1.06; letter-spacing: -.045em; }
     .layout-cover.notes .cover-title { font-style: italic; }
     .artboard.living .art-serif { font-family: Inter, "Noto Sans TC", sans-serif; font-weight: 600; }
-    .layout-cover.living .cover-title { line-height: .98; letter-spacing: -.045em; }
+    .layout-cover.living .cover-title { line-height: 1.12; letter-spacing: -.032em; }
     .artboard.living .art-kicker { letter-spacing: .13em; }
+    .artboard.seoul .art-serif { font-family: Inter, "Noto Sans TC", sans-serif; font-weight: 600; }
+    .layout-cover.seoul .cover-title { line-height: 1.14; letter-spacing: -.025em; }
+    .artboard.seoul .art-kicker { letter-spacing: .1em; }
+    .artboard.roam .art-serif { font-family: Inter, "Noto Sans TC", sans-serif; font-weight: 600; }
+    .layout-cover.roam .cover-title { line-height: 1.15; letter-spacing: -.026em; }
+    .artboard.roam .art-kicker { letter-spacing: .15em; }
+    .artboard.roam .roam-serif-accent,
+    .artboard.roam .quote-mark { font-family: "DM Serif Display", "Noto Serif TC", serif; }
+    .layout-cover.roam .cover-overlay-light {
+      background: linear-gradient(180deg, rgba(13,15,12,.28) 0%, rgba(13,15,12,.02) 42%, rgba(13,15,12,.1) 62%, rgba(13,15,12,.84) 100%);
+    }
     .cover-star { font-family: "DM Serif Display", serif; line-height: 1; }
     .paper-grid {
       background-image:
@@ -269,6 +280,8 @@
                     <select v-model="aiInput.tone" class="field bg-white">
                       <option value="editorial">雜誌編輯感｜有觀點、有留白</option>
                       <option value="living">生活情境感｜像朋友分享，但有品味</option>
+                      <option value="trend">韓系選題感｜明確、有趣、俐落</option>
+                      <option value="observation">品牌觀察感｜像旅途中寫下的品牌筆記</option>
                       <option value="warm">溫柔生活感｜自然、親近</option>
                       <option value="minimal">極簡理性感｜乾淨、精準</option>
                     </select>
@@ -332,10 +345,22 @@
                   <input v-model="form.city" @input="scheduleSave" class="field" placeholder="Bangkok, Thailand" />
                 </label>
               </div>
-              <label class="block">
-                <span class="field-label">品牌類型</span>
-                <input v-model="form.category" @input="scheduleSave" class="field" placeholder="LIFESTYLE / OBJECTS" />
-              </label>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <label>
+                  <span class="field-label">品牌類型</span>
+                  <input v-model="form.category" @input="scheduleSave" class="field" placeholder="LIFESTYLE / OBJECTS" />
+                </label>
+                <label>
+                  <span class="field-label">內容欄目</span>
+                  <select v-model="form.series" @change="updateSeries" class="field">
+                    <option value="BRAND JOURNAL">BRAND JOURNAL｜品牌觀察日記</option>
+                    <option value="SOI BRAND">SOI BRAND｜品牌介紹</option>
+                    <option value="SOI PICKS">SOI PICKS｜選物清單</option>
+                    <option value="BANGKOK FIND">BANGKOK FIND｜曼谷發現</option>
+                    <option value="EVERYDAY NOTE">EVERYDAY NOTE｜生活提案</option>
+                  </select>
+                </label>
+              </div>
               <label class="block">
                 <span class="field-label">封面 Hook 標題 <small>{{ form.hook.length }}/28</small></span>
                 <input v-model="form.hook" @input="scheduleSave" maxlength="28" class="field" placeholder="例如：這只包，讓日常穿搭不再無聊。" />
@@ -567,24 +592,23 @@
                   </div>
                   <div class="absolute inset-0" :class="form.coverText==='dark' ? 'cover-overlay-dark' : 'cover-overlay-light'"></div>
                   <div class="absolute inset-0 z-10" :class="form.coverText==='dark' ? 'cover-ui-dark' : 'cover-ui-light'">
-                    <div class="absolute left-[64px] right-[64px] top-[58px] flex items-start justify-between border-t border-current/60 pt-5 art-small font-semibold">
-                      <span>SOI EDITOR</span>
-                      <span class="text-right leading-[1.5]">BRAND FEATURE<br>{{ pageNumber }}</span>
+                    <div class="absolute left-[82px] right-[82px] top-[62px] flex items-start justify-between border-t border-current/50 pt-5 art-small font-semibold">
+                      <span class="roam-serif-accent">SOI EDITOR</span>
+                      <span class="text-right leading-[1.5]">FOUND BY SOI</span>
                     </div>
 
-                    <div class="absolute right-[72px] top-[226px] flex items-center gap-4">
-                      <span class="cover-star text-[74px]">✦</span>
-                      <span class="max-w-[190px] text-[17px] font-semibold leading-[1.45] tracking-[.09em]">CURATED FROM<br>{{ cityShort }}</span>
+                    <div class="absolute left-[82px] right-[82px] top-[292px] flex items-center gap-5">
+                      <span class="rounded-full border border-current/65 bg-black/5 px-6 py-3 art-small font-semibold backdrop-blur-sm">{{ currentSlide.kicker }}</span>
+                      <span class="h-px max-w-[190px] flex-1 bg-current opacity-50"></span>
                     </div>
 
-                    <div class="absolute bottom-[80px] left-[64px] right-[64px]">
-                      <div class="mb-7 flex items-center gap-5">
-                        <span class="rounded-full border border-current/70 bg-black/5 px-6 py-3 art-small font-semibold backdrop-blur-sm">{{ currentSlide.kicker }}</span>
-                        <span class="h-px flex-1 bg-current opacity-60"></span>
-                      </div>
-                      <h3 class="cover-title art-serif max-w-[940px]" :style="{fontSize:coverFontSize+'px'}">{{ currentSlide.title }}</h3>
-                      <div class="mt-8 grid grid-cols-[1fr_auto] items-end gap-10 border-t border-current/55 pt-6">
-                        <p v-if="currentSlide.body" class="max-w-[740px] whitespace-pre-line text-[27px] font-medium leading-[1.58]">{{ currentSlide.body }}</p>
+                    <div class="absolute bottom-[76px] left-[82px] right-[82px] top-[400px] flex flex-col">
+                      <h3 class="cover-title art-serif max-w-[820px] whitespace-pre-line" :style="{fontSize:coverFontSize+'px'}">{{ currentSlide.title }}</h3>
+                      <div class="mt-auto grid grid-cols-[1fr_auto] items-end gap-14 border-t border-current/50 pt-8">
+                        <div class="max-w-[690px]">
+                          <p class="mb-4 text-[18px] font-semibold tracking-[.14em]">{{ form.brand || 'BRAND FEATURE' }}</p>
+                          <p v-if="currentSlide.body" class="whitespace-pre-line text-[25px] font-medium leading-[1.75]">{{ currentSlide.body }}</p>
+                        </div>
                         <p class="text-right art-small font-semibold leading-[1.55]">SWIPE TO<br>READ ↗</p>
                       </div>
                     </div>
@@ -593,7 +617,7 @@
 
                 <template v-else-if="currentSlide.layout==='intro'">
                   <div class="absolute left-[72px] top-[70px] right-[72px] flex items-center justify-between art-small">
-                    <span>{{ currentSlide.kicker }}</span><span>{{ pageNumber }}</span>
+                    <span>{{ currentSlide.kicker }}</span><span>SOI EDIT</span>
                   </div>
                   <div class="absolute left-[72px] top-[155px] h-[2px] w-[936px] bg-current opacity-30"></div>
                   <div class="absolute left-[72px] top-[215px] w-[540px]">
@@ -607,13 +631,14 @@
                 </template>
 
                 <template v-else-if="currentSlide.layout==='quote'">
-                  <div class="absolute inset-x-[70px] top-[66px] flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>{{ pageNumber }}</span></div>
-                  <div class="absolute left-[86px] top-[254px] text-[130px] leading-none opacity-20 art-serif">“</div>
+                  <div class="absolute inset-x-[70px] top-[66px] flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>FOUND BY SOI</span></div>
+                  <div class="quote-mark absolute left-[86px] top-[254px] text-[130px] leading-none opacity-20">“</div>
                   <div class="absolute left-[148px] right-[126px] top-[360px]">
                     <h3 class="art-serif text-[82px] leading-[1.22] tracking-[-.025em]">{{ currentSlide.title }}</h3>
                     <div class="mt-14 h-[2px] w-[180px] bg-current opacity-45"></div>
                     <p class="art-copy mt-12 max-w-[720px] whitespace-pre-line">{{ currentSlide.body }}</p>
                   </div>
+                  <div class="quote-mark absolute bottom-[205px] right-[86px] text-[130px] leading-none opacity-20">”</div>
                   <div class="absolute bottom-[68px] left-[70px] right-[70px] flex justify-between art-small"><span>{{ currentSlide.footer }}</span><span>FOUND BY SOI</span></div>
                 </template>
 
@@ -626,14 +651,14 @@
                     <h3 class="art-serif text-[74px] leading-[1.02] tracking-[-.02em]">{{ currentSlide.title }}</h3>
                     <p class="whitespace-pre-line text-[27px] leading-[1.72]">{{ currentSlide.body }}</p>
                   </div>
-                  <div class="absolute bottom-[54px] left-[68px] right-[68px] flex justify-between border-t border-current/25 pt-5 art-small"><span>{{ currentSlide.footer }}</span><span>{{ pageNumber }}</span></div>
+                  <div class="absolute bottom-[54px] left-[68px] right-[68px] flex justify-between border-t border-current/25 pt-5 art-small"><span>{{ currentSlide.footer }}</span><span>SOI EDIT</span></div>
                 </template>
 
                 <template v-else-if="currentSlide.layout==='curation'">
                   <div class="absolute left-[66px] top-[62px] h-[500px] w-[430px] overflow-hidden" :class="form.theme==='notes' ? '-rotate-[2deg] shadow-[16px_18px_0_rgba(32,35,31,.12)]' : ''">
                     <img :src="mediaSource(currentSlide.mediaIndex)" alt="SOI 編輯選物" class="image-fill" />
                   </div>
-                  <div class="absolute right-[72px] top-[66px] text-right art-small">{{ pageNumber }}<br/>EDITOR'S NOTE</div>
+                  <div class="absolute right-[72px] top-[66px] text-right art-small">EDITOR'S NOTE</div>
                   <div class="absolute bottom-[120px] left-[70px] right-[70px]">
                     <p class="art-kicker mb-8 text-sage">{{ currentSlide.kicker }}</p>
                     <h3 class="art-serif max-w-[900px] text-[82px] leading-[1.02] tracking-[-.025em]">{{ currentSlide.title }}</h3>
@@ -648,7 +673,7 @@
                 <template v-else-if="currentSlide.layout==='products'">
                   <div class="absolute left-[70px] right-[70px] top-[62px] flex items-end justify-between border-b border-current/25 pb-6">
                     <div><p class="art-kicker">{{ currentSlide.kicker }}</p><h3 class="art-serif mt-4 text-[76px] leading-none">{{ currentSlide.title }}</h3></div>
-                    <span class="art-small">{{ pageNumber }}</span>
+                    <span class="art-small">SOI EDIT</span>
                   </div>
                   <div class="absolute left-[70px] right-[70px] top-[260px] grid grid-cols-2 gap-[26px]">
                     <div v-for="(product,index) in productItems.slice(0,4)" :key="index" class="border-t border-current/35 pt-5">
@@ -662,7 +687,7 @@
 
                 <template v-else-if="currentSlide.layout==='split'">
                   <div class="absolute left-0 top-0 h-full w-[46%] overflow-hidden"><img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌情境" class="image-fill" /></div>
-                  <div class="absolute left-[52%] right-[68px] top-[72px] art-small flex justify-between"><span>{{ currentSlide.kicker }}</span><span>{{ pageNumber }}</span></div>
+                  <div class="absolute left-[52%] right-[68px] top-[72px] art-small flex justify-between"><span>{{ currentSlide.kicker }}</span><span>SOI EDIT</span></div>
                   <div class="absolute left-[52%] right-[74px] top-[280px]">
                     <h3 class="art-serif text-[78px] leading-[1.05]">{{ currentSlide.title }}</h3>
                     <p class="art-copy mt-12 whitespace-pre-line">{{ currentSlide.body }}</p>
@@ -673,7 +698,7 @@
                 <template v-else-if="currentSlide.layout==='closing'">
                   <div class="absolute inset-0 overflow-hidden image-wash"><img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌結尾" class="image-fill" /></div>
                   <div class="absolute inset-0 z-10 flex flex-col justify-between p-[70px] text-white">
-                    <div class="flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>{{ pageNumber }}</span></div>
+                    <div class="flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>FOUND BY SOI</span></div>
                     <div>
                       <h3 class="art-serif max-w-[900px] text-[104px] leading-[.98] tracking-[-.03em]">{{ currentSlide.title }}</h3>
                       <p class="mt-10 max-w-[760px] whitespace-pre-line text-[30px] leading-[1.7]">{{ currentSlide.body }}</p>
@@ -684,7 +709,7 @@
 
                 <template v-else>
                   <div class="absolute inset-0" :class="form.theme==='notes' ? 'paper-grid' : ''"></div>
-                  <div class="absolute left-[70px] top-[68px] right-[70px] flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>{{ pageNumber }}</span></div>
+                  <div class="absolute left-[70px] top-[68px] right-[70px] flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>SOI EDIT</span></div>
                   <div class="absolute left-[70px] right-[70px] top-[315px] text-center">
                     <p class="mb-8 text-[25px] tracking-[.22em] opacity-70">FOUND IN BANGKOK</p>
                     <h3 class="whitespace-pre-line art-serif text-[105px] leading-[.98] tracking-[-.035em]">{{ currentSlide.title }}</h3>
@@ -746,12 +771,16 @@
         const themes = [
           { key: 'editorial', name: 'EDITORIAL', description: '大量留白與大字標題，像獨立生活雜誌。', preview: 'linear-gradient(135deg,#f0ece1 0 55%,#9aa083 55%)' },
           { key: 'living', name: 'THAI LIVING', description: '滿版生活照、中文大標與容易代入的日常情境。', preview: 'linear-gradient(145deg,#b96947 0 48%,#f3e8dc 48% 76%,#7e8b64 76%)' },
+          { key: 'roam', name: 'ROAM JOURNAL', description: '黑體主導、少量襯線點綴，保留自然留白與旅行採集感。', preview: 'linear-gradient(145deg,#6e7964 0 54%,#eee9dc 54% 82%,#a77b5f 82%)' },
+          { key: 'seoul', name: 'SEOUL EDIT', description: '固定欄目、小字標示與俐落大標，適合系列化內容。', preview: 'linear-gradient(145deg,#f4f1e9 0 64%,#1f2220 64% 77%,#abb8bd 77%)' },
           { key: 'object', name: 'OBJECT', description: '清楚、理性、聚焦商品與設計細節。', preview: 'linear-gradient(180deg,#d8d4ca 0 58%,#ffffff 58%)' },
           { key: 'notes', name: 'BANGKOK NOTES', description: '帶一點城市採集、手記與紙張感。', preview: 'linear-gradient(115deg,#ded4c4 0 48%,#9e8068 48%)' }
         ];
         const palettes = [
           { key: 'cream', name: 'Cream / Olive', paper: '#f2efe5', ink: '#22251f', accent: '#8f9677' },
           { key: 'clay', name: 'Clay / Leaf', paper: '#f3e9dc', ink: '#292820', accent: '#b76f4d' },
+          { key: 'ivory', name: 'Ivory / Ink', paper: '#f6f3eb', ink: '#1d201e', accent: '#87979d' },
+          { key: 'forest', name: 'Forest / Linen', paper: '#efebe0', ink: '#252a23', accent: '#6f7c66' },
           { key: 'stone', name: 'Stone / Silver', paper: '#ecebe7', ink: '#292b29', accent: '#a5a5a0' },
           { key: 'sand', name: 'Sand / Taupe', paper: '#e8dfd2', ink: '#302c27', accent: '#9b806d' }
         ];
@@ -760,6 +789,7 @@
           brand: 'PRACTICE OBJECTS',
           city: 'Bangkok, Thailand',
           category: 'LIFESTYLE / OBJECTS',
+          series: 'BRAND JOURNAL',
           hook: '好看的物件，也可以讓日常更有意思。',
           tagline: '把曼谷的日常，收進一件件安靜的物件裡。',
           story: '從對日常器物的觀察出發，品牌把簡單輪廓與實用功能放進每件作品。\n\n不搶眼，卻能安靜地陪伴生活。',
@@ -770,8 +800,8 @@
           source: 'BRAND OFFICIAL / SOI EDIT',
           references: '',
           caption: '',
-          theme: 'living',
-          palette: 'clay',
+          theme: 'roam',
+          palette: 'forest',
           coverText: 'light',
           language: 'mix',
           slideCount: 7
@@ -779,7 +809,7 @@
 
         const form = reactive(defaultForm());
         const activeStep = ref('ai');
-        const aiInput = reactive({ brand:'', products:'', url:'', tone:'living', hookStyle:'question' });
+        const aiInput = reactive({ brand:'', products:'', url:'', tone:'observation', hookStyle:'scene' });
         const aiResult = ref('');
         const aiError = ref('');
         const promptCopied = ref(false);
@@ -819,13 +849,13 @@
         const currentSlide = computed(() => slides.value[currentIndex.value] || { layout:'cta', kicker:'', title:'', body:'', footer:'', mediaIndex:0 });
         const coverFontSize = computed(() => {
           const length = [...(currentSlide.value.title || '')].length;
-          if (length <= 10) return 164;
-          if (length <= 16) return 142;
-          if (length <= 24) return 118;
-          if (length <= 32) return 98;
-          return 80;
+          if (length <= 8) return 132;
+          if (length <= 12) return 118;
+          if (length <= 18) return 102;
+          if (length <= 24) return 90;
+          if (length <= 32) return 78;
+          return 68;
         });
-        const pageNumber = computed(() => `${String(currentIndex.value + 1).padStart(2,'0')} / ${String(slides.value.length).padStart(2,'0')}`);
         const cityShort = computed(() => (form.city || 'BANGKOK').split(',')[0].toUpperCase());
         const availableMedia = computed(() => images.value.length ? images.value : demoImages.map((src,index)=>({src,name:`示範圖 ${index+1}`})));
         const productItems = computed(() => {
@@ -839,6 +869,8 @@
           const toneMap = {
             editorial: '獨立生活雜誌的編輯語氣：有觀點、有留白，不像購物台，也不要過度煽情',
             living: '有品味的生活選品語氣：先說人會遇到的生活情境，再自然帶出商品；像朋友分享，但不口語過頭',
+            trend: '韓系社群雜誌的選題語氣：標題明確、有趣、帶一點輕鬆感；內文俐落，不堆網路流行語',
+            observation: '泰國品牌觀察日記的編輯語氣：像在旅途中慢慢認識一個品牌，先說值得注意的文化或設計線索，再介紹商品；真誠、克制、不催促購買',
             warm: '溫柔自然的生活選物語氣：親近、好讀，但不使用浮誇銷售字眼',
             minimal: '極簡理性的編輯語氣：短句、精準、重視設計與使用細節'
           };
@@ -870,6 +902,10 @@ ${aiInput.products || '（尚未填寫）'}
 11. 內容節奏要像好讀的生活選品帳號：先讓讀者代入一個日常，再介紹品牌與商品，不要一開頭就堆品牌歷史。
 12. Hook 切角：${hookMap[aiInput.hookStyle] || hookMap.question}。
 13. 參考的是內容策略，不得仿寫、改寫或提及其他選品帳號的原句與名稱。
+14. 為內容選擇固定欄目。深度品牌介紹優先使用 BRAND JOURNAL；簡短品牌介紹用 SOI BRAND；多件推薦用 SOI PICKS；曼谷店家或城市發現用 BANGKOK FIND；生活情境提案用 EVERYDAY NOTE。
+15. 如果是多件清單，可在 Hook 放入正確數量；單一商品不要硬寫數字。
+16. BRAND JOURNAL 的內容順序優先是：如何認識它／品牌從哪裡來／文化或設計靈感／商品細節／SOI 為什麼想帶回來。不要把每頁都寫成購買理由。
+17. 除非資料來源明確，不能把「泰國感」、「地方文化」或「手工」當成事實；無法驗證時只能寫成編輯觀察。
 
 【輸出要求】
 只輸出一個合法 JSON 物件，不要加 Markdown、不要使用三個反引號、不要補充說明。所有欄位都必須存在；沒有資料時使用空字串或空陣列。
@@ -878,6 +914,7 @@ ${aiInput.products || '（尚未填寫）'}
   "brand": "品牌正式名稱",
   "city": "城市, 國家",
   "category": "英文分類，例如 LIFESTYLE / BAGS",
+  "series": "只使用 BRAND JOURNAL、SOI BRAND、SOI PICKS、BANGKOK FIND、EVERYDAY NOTE 其中一個",
   "hook": "12 至 22 字的封面 Hook，不重複品牌名，讓人想繼續往下滑",
   "tagline": "25 至 45 字的一句話品牌介紹",
   "story": "60 至 100 字、最多兩個短段落的品牌故事，只寫可驗證內容",
@@ -896,7 +933,7 @@ ${aiInput.products || '（尚未填寫）'}
   "caption": "180 至 260 字的精簡 IG 文案：第一段是 Hook，全文 3 至 4 個短段落、段落間空一行，最後加入一句引導與 5 至 8 個 hashtag"
 }
 
-carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序涵蓋：品牌一句話、生活使用情境、設計或商品細節、SOI 選物理由、推薦單品；頁數不足時合併相近主題。不要包含封面與最後 CTA。`;
+carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序涵蓋：第一次認識它的線索、品牌來源、文化或設計靈感、商品細節、SOI 選物理由；頁數不足時合併相近主題。不要包含封面與最後 CTA。`;
         });
 
         const labels = computed(() => {
@@ -912,14 +949,14 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序
           const detailsTitle = form.language === 'en' ? 'Details that reveal themselves over time.' : '有些細節，不必第一眼就看見。';
           const reasonTitle = form.language === 'en' ? 'Why it belongs in our edit.' : 'SOI 為什麼想把它帶回來？';
           return [
-            { id: crypto.randomUUID(), layout:'cover', kicker:`${brand} / ${form.category}`, title:form.hook || form.tagline || '值得認識的日常選物。', body:form.tagline, footer:form.city || 'BANGKOK, THAILAND', mediaIndex:0 },
+            { id: crypto.randomUUID(), layout:'cover', kicker:`${form.series || labels.value.cover} / ${form.category}`, title:form.hook || form.tagline || '值得認識的日常選物。', body:form.tagline, footer:form.city || 'BANGKOK, THAILAND', mediaIndex:0 },
             { id: crypto.randomUUID(), layout:'intro', kicker:labels.value.story, title:storyTitle, body:form.story, footer:form.source || 'BRAND OFFICIAL / SOI EDIT', mediaIndex:1 },
             { id: crypto.randomUUID(), layout:'quote', kicker:labels.value.quote, title:quoteTitle, body:form.philosophy, footer:brand, mediaIndex:2 },
             { id: crypto.randomUUID(), layout:'details', kicker:labels.value.details, title:detailsTitle, body:form.philosophy, footer:'FORM / MATERIAL / EVERYDAY', mediaIndex:2 },
             { id: crypto.randomUUID(), layout:'curation', kicker:labels.value.curation, title:reasonTitle, body:form.reason, footer:`SELECTED BY SOI · ${cityShort.value}`, mediaIndex:3 },
             { id: crypto.randomUUID(), layout:'products', kicker:labels.value.products, title:'這幾件，最值得先認識。', body:'選擇真正會被使用、也值得被長久留下的單品。', footer:brand, mediaIndex:0 },
             { id: crypto.randomUUID(), layout:'split', kicker:labels.value.city, title:`Found in ${cityShort.value}.`, body:`我們在城市裡尋找的不只是紀念品，\n而是能把一段故事帶回家的物件。`, footer:'CURATED FROM BANGKOK.', mediaIndex:1 },
-            { id: crypto.randomUUID(), layout:'details', kicker:'IN USE / 08', title:'Made to live with you.', body:'真正好的設計，會自然融入每天的動作。從觸感、重量到收納方式，每一處都剛剛好。', footer:'EVERYDAY OBJECTS', mediaIndex:3 },
+            { id: crypto.randomUUID(), layout:'details', kicker:'IN USE', title:'Made to live with you.', body:'真正好的設計，會自然融入每天的動作。從觸感、重量到收納方式，每一處都剛剛好。', footer:'EVERYDAY OBJECTS', mediaIndex:3 },
             { id: crypto.randomUUID(), layout:'closing', kicker:labels.value.closing, title:'Take a piece of Bangkok home.', body:'不是把旅行打包，而是把一種生活方式帶回來。', footer:brand, mediaIndex:0 },
             { id: crypto.randomUUID(), layout:'cta', kicker:labels.value.cta, title:'Found by SOI.\nShared with You.', body:'跟著 SOI，繼續發現來自曼谷的品牌、物件與日常故事。', footer:'FIND MORE THAN SOUVENIRS.', mediaIndex:0 }
           ];
@@ -935,6 +972,12 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序
           else chosen = pool;
           slides.value = chosen;
           currentIndex.value = Math.min(currentIndex.value, chosen.length - 1);
+          scheduleSave();
+        }
+
+        function updateSeries() {
+          const cover = slides.value.find(slide => slide.layout === 'cover');
+          if (cover) cover.kicker = `${form.series || labels.value.cover} / ${form.category || 'BRAND FEATURE'}`;
           scheduleSave();
         }
 
@@ -1028,6 +1071,7 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序
               brand: asText(data.brand) || aiInput.brand.trim() || form.brand,
               city: asText(data.city) || form.city,
               category: asText(data.category) || form.category,
+              series: ['BRAND JOURNAL','SOI BRAND','SOI PICKS','BANGKOK FIND','EVERYDAY NOTE'].includes(asText(data.series)) ? asText(data.series) : form.series,
               hook: asText(data.hook) || asText(data.tagline) || form.hook,
               tagline: asText(data.tagline) || form.tagline,
               story: asText(data.story) || form.story,
@@ -1180,7 +1224,7 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序
           saveStatus.value='儲存中…'; clearTimeout(saveTimer);
           saveTimer=setTimeout(()=>{
             try {
-              localStorage.setItem('soi-editor-project',JSON.stringify({version:2,form:{...form},slides:slides.value}));
+              localStorage.setItem('soi-editor-project',JSON.stringify({version:5,form:{...form},slides:slides.value}));
               saveStatus.value='內容已儲存在這台裝置';
             } catch(e) { saveStatus.value='內容已更新'; }
           },450);
@@ -1189,15 +1233,30 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序
           try {
             const saved=JSON.parse(localStorage.getItem('soi-editor-project'));
             if (!saved) return false;
+            const savedVersion = Number(saved.version || 1);
             Object.assign(form,saved.form||{});
             if (Array.isArray(saved.slides)&&saved.slides.length) slides.value=saved.slides;
-            if (Number(saved.version || 1) < 2 && slides.value.length) {
+            if (savedVersion < 2 && slides.value.length) {
               const cover = slides.value.find(slide => slide.layout === 'cover');
               if (cover) {
-                cover.kicker = `${form.brand || 'YOUR BRAND'} / ${form.category || 'BRAND FEATURE'}`;
                 cover.title = form.hook || form.tagline || '值得認識的日常選物。';
                 cover.body = form.tagline || '';
               }
+            }
+            if (savedVersion < 3 && slides.value.length) {
+              const cover = slides.value.find(slide => slide.layout === 'cover');
+              if (cover) cover.kicker = `${labels.value.cover} / ${form.category || 'BRAND FEATURE'}`;
+            }
+            if (savedVersion < 4 && slides.value.length) {
+              const cover = slides.value.find(slide => slide.layout === 'cover');
+              if (cover) cover.kicker = `${form.series || 'SOI BRAND'} / ${form.category || 'BRAND FEATURE'}`;
+            }
+            if (savedVersion < 5 && slides.value.length) {
+              form.theme = 'roam';
+              form.palette = 'forest';
+              form.series = 'BRAND JOURNAL';
+              const cover = slides.value.find(slide => slide.layout === 'cover');
+              if (cover) cover.kicker = `BRAND JOURNAL / ${form.category || 'BRAND FEATURE'}`;
               scheduleSave();
             }
             return true;
@@ -1205,7 +1264,7 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序
         }
         function resetProject() {
           if (!confirm('要清除目前內容並回到示範專案嗎？')) return;
-          Object.assign(form,defaultForm()); Object.assign(aiInput,{brand:'',products:'',url:'',tone:'living',hookStyle:'question'}); aiResult.value=''; aiError.value=''; images.value=[]; currentIndex.value=0; activeStep.value='ai'; generateSlides(true); generateCaption(true); showToast('已建立新的空白專案');
+          Object.assign(form,defaultForm()); Object.assign(aiInput,{brand:'',products:'',url:'',tone:'observation',hookStyle:'scene'}); aiResult.value=''; aiError.value=''; images.value=[]; currentIndex.value=0; activeStep.value='ai'; generateSlides(true); generateCaption(true); showToast('已建立新的空白專案');
         }
         function updateScale() {
           if (artboardShell.value) previewScale.value=artboardShell.value.clientWidth/1080;
@@ -1222,8 +1281,8 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，依序
 
         return {
           steps,themes,palettes,form,activeStep,aiInput,aiResult,aiError,promptCopied,images,slides,currentIndex,dragSlideIndex,dragging,exporting,exportMessage,toast,saveStatus,artboard,artboardShell,
-          selectedPalette,artboardStyle,currentSlide,coverFontSize,pageNumber,cityShort,availableMedia,productItems,researchPrompt,
-          generateSlides,generateCaption,copyCaption,copyResearchPrompt,applyAIResult,mediaSource,handleFiles,onDrop,removeImage,makeCover,moveSlide,dropSlide,duplicateSlide,deleteSlide,downloadCurrent,downloadAll,resetProject,scheduleSave
+          selectedPalette,artboardStyle,currentSlide,coverFontSize,cityShort,availableMedia,productItems,researchPrompt,
+          generateSlides,updateSeries,generateCaption,copyCaption,copyResearchPrompt,applyAIResult,mediaSource,handleFiles,onDrop,removeImage,makeCover,moveSlide,dropSlide,duplicateSlide,deleteSlide,downloadCurrent,downloadAll,resetProject,scheduleSave
         };
       }
     }).mount('#app');
