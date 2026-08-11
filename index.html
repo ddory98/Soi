@@ -530,18 +530,18 @@
                 <label class="block">
                   <span class="field-label">主標題 <small>{{ currentSlide.title.length }}/90</small></span>
                   <textarea v-model="currentSlide.title" @input="scheduleSave" maxlength="90" class="field min-h-[86px]"></textarea>
-                  <p v-if="currentSlide.layout==='cover'" class="mt-1.5 text-[10px] leading-4 text-[#96988f]">按 Enter 分行後，可在下方調整整組封面標題的大小。</p>
+                  <p class="mt-1.5 text-[10px] leading-4 text-[#96988f]">按 Enter 可自行分行；下方字級只會套用在目前這一頁。</p>
                 </label>
-                <div v-if="currentSlide.layout==='cover'" class="rounded-2xl border hairline bg-[#faf9f6] p-4">
+                <div class="rounded-2xl border hairline bg-[#faf9f6] p-4">
                   <div class="mb-3 flex items-center justify-between gap-3">
-                    <span class="field-label !mb-0">封面標題字級</span>
-                    <span class="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-[#6f7169]">{{ currentSlide.titleFontSize ? currentSlide.titleFontSize + ' px' : '自動 ' + coverFontSize + ' px' }}</span>
+                    <span class="field-label !mb-0">目前頁面標題字級</span>
+                    <span class="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-[#6f7169]">{{ currentSlide.titleFontSize ? currentSlide.titleFontSize + ' px' : '自動 ' + currentDefaultTitleFontSize + ' px' }}</span>
                   </div>
-                  <input type="range" min="60" max="140" step="2" :value="currentSlide.titleFontSize || coverFontSize" @input="currentSlide.titleFontSize=Number($event.target.value); scheduleSave()" class="w-full accent-[#747b63]" aria-label="調整封面標題字級" />
+                  <input type="range" min="40" max="140" step="2" :value="currentSlide.titleFontSize || currentDefaultTitleFontSize" @input="currentSlide.titleFontSize=Number($event.target.value); scheduleSave()" class="w-full accent-[#747b63]" aria-label="調整目前頁面標題字級" />
                   <div class="mt-3 grid grid-cols-4 gap-2">
-                    <button @click="currentSlide.titleFontSize=72; scheduleSave()" class="rounded-xl bg-white px-2 py-2 text-[10px] font-semibold">小</button>
-                    <button @click="currentSlide.titleFontSize=96; scheduleSave()" class="rounded-xl bg-white px-2 py-2 text-[10px] font-semibold">中</button>
-                    <button @click="currentSlide.titleFontSize=120; scheduleSave()" class="rounded-xl bg-white px-2 py-2 text-[10px] font-semibold">大</button>
+                    <button @click="currentSlide.titleFontSize=58; scheduleSave()" class="rounded-xl bg-white px-2 py-2 text-[10px] font-semibold">小</button>
+                    <button @click="currentSlide.titleFontSize=78; scheduleSave()" class="rounded-xl bg-white px-2 py-2 text-[10px] font-semibold">中</button>
+                    <button @click="currentSlide.titleFontSize=104; scheduleSave()" class="rounded-xl bg-white px-2 py-2 text-[10px] font-semibold">大</button>
                     <button @click="currentSlide.titleFontSize=null; scheduleSave()" class="rounded-xl bg-[#eff0e8] px-2 py-2 text-[10px] font-semibold text-[#626a52]">自動</button>
                   </div>
                 </div>
@@ -618,7 +618,7 @@
                     </div>
 
                     <div class="absolute bottom-[76px] left-[82px] right-[82px] top-[400px] flex flex-col">
-                      <h3 class="cover-title art-serif max-w-[820px] whitespace-pre-line" :style="{fontSize:(currentSlide.titleFontSize || coverFontSize)+'px'}">{{ currentSlide.title }}</h3>
+                      <h3 class="cover-title art-serif max-w-[820px] whitespace-pre-line" :style="{fontSize:(currentSlide.titleFontSize || currentDefaultTitleFontSize)+'px'}">{{ currentSlide.title }}</h3>
                       <div class="mt-auto grid grid-cols-[1fr_auto] items-end gap-14 border-t border-current/50 pt-8">
                         <div class="max-w-[690px]">
                           <p class="mb-4 text-[18px] font-semibold tracking-[.14em]">{{ form.brand || 'BRAND FEATURE' }}</p>
@@ -636,7 +636,7 @@
                   </div>
                   <div class="absolute left-[72px] top-[155px] h-[2px] w-[936px] bg-current opacity-30"></div>
                   <div class="absolute left-[72px] top-[215px] w-[540px]">
-                    <h3 class="art-serif text-[88px] leading-[1.03] tracking-[-.025em]">{{ currentSlide.title }}</h3>
+                    <h3 class="art-serif whitespace-pre-line text-[88px] leading-[1.03] tracking-[-.025em]" :style="{fontSize:(currentSlide.titleFontSize || 88)+'px'}">{{ currentSlide.title }}</h3>
                     <p class="art-copy mt-12 whitespace-pre-line">{{ currentSlide.body }}</p>
                   </div>
                   <div class="absolute bottom-[76px] right-[66px] h-[570px] w-[350px] overflow-hidden" :class="form.theme==='notes' ? 'rotate-[2deg] shadow-[18px_20px_0_rgba(32,35,31,.10)]' : ''">
@@ -649,7 +649,7 @@
                   <div class="absolute inset-x-[70px] top-[66px] flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>FOUND BY SOI</span></div>
                   <div class="quote-mark absolute left-[86px] top-[254px] text-[130px] leading-none opacity-20">“</div>
                   <div class="absolute left-[148px] right-[126px] top-[360px]">
-                    <h3 class="art-serif text-[82px] leading-[1.22] tracking-[-.025em]">{{ currentSlide.title }}</h3>
+                    <h3 class="art-serif whitespace-pre-line text-[82px] leading-[1.22] tracking-[-.025em]" :style="{fontSize:(currentSlide.titleFontSize || 82)+'px'}">{{ currentSlide.title }}</h3>
                     <div class="mt-14 h-[2px] w-[180px] bg-current opacity-45"></div>
                     <p class="art-copy mt-12 max-w-[720px] whitespace-pre-line">{{ currentSlide.body }}</p>
                   </div>
@@ -663,7 +663,7 @@
                   </div>
                   <div class="absolute left-[68px] top-[60px] rounded-full bg-[var(--paper)]/90 px-6 py-3 art-small">{{ currentSlide.kicker }}</div>
                   <div class="absolute left-[68px] right-[68px] top-[815px] grid grid-cols-[1.05fr_.95fr] gap-[64px]">
-                    <h3 class="art-serif text-[74px] leading-[1.02] tracking-[-.02em]">{{ currentSlide.title }}</h3>
+                    <h3 class="art-serif whitespace-pre-line text-[74px] leading-[1.02] tracking-[-.02em]" :style="{fontSize:(currentSlide.titleFontSize || 74)+'px'}">{{ currentSlide.title }}</h3>
                     <p class="whitespace-pre-line text-[27px] leading-[1.72]">{{ currentSlide.body }}</p>
                   </div>
                   <div class="absolute bottom-[54px] left-[68px] right-[68px] flex justify-between border-t border-current/25 pt-5 art-small"><span>{{ currentSlide.footer }}</span><span>SOI EDIT</span></div>
@@ -676,7 +676,7 @@
                   <div class="absolute right-[72px] top-[66px] text-right art-small">EDITOR'S NOTE</div>
                   <div class="absolute bottom-[120px] left-[70px] right-[70px]">
                     <p class="art-kicker mb-8 text-sage">{{ currentSlide.kicker }}</p>
-                    <h3 class="art-serif max-w-[900px] text-[82px] leading-[1.02] tracking-[-.025em]">{{ currentSlide.title }}</h3>
+                    <h3 class="art-serif max-w-[900px] whitespace-pre-line text-[82px] leading-[1.02] tracking-[-.025em]" :style="{fontSize:(currentSlide.titleFontSize || 82)+'px'}">{{ currentSlide.title }}</h3>
                     <div class="mt-11 grid grid-cols-[170px_1fr] gap-12 border-t border-current/30 pt-9">
                       <p class="art-small leading-7">SELECTED<br/>WITH A<br/>POINT OF VIEW</p>
                       <p class="art-copy whitespace-pre-line">{{ currentSlide.body }}</p>
@@ -687,7 +687,7 @@
 
                 <template v-else-if="currentSlide.layout==='products'">
                   <div class="absolute left-[70px] right-[70px] top-[62px] flex items-end justify-between border-b border-current/25 pb-6">
-                    <div><p class="art-kicker">{{ currentSlide.kicker }}</p><h3 class="art-serif mt-4 text-[76px] leading-none">{{ currentSlide.title }}</h3></div>
+                    <div><p class="art-kicker">{{ currentSlide.kicker }}</p><h3 class="art-serif mt-4 whitespace-pre-line text-[76px] leading-none" :style="{fontSize:(currentSlide.titleFontSize || 76)+'px'}">{{ currentSlide.title }}</h3></div>
                     <span class="art-small">SOI EDIT</span>
                   </div>
                   <div class="absolute left-[70px] right-[70px] top-[260px] grid grid-cols-2 gap-[26px]">
@@ -704,7 +704,7 @@
                   <div class="absolute left-0 top-0 h-full w-[46%] overflow-hidden"><img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌情境" class="image-fill" /></div>
                   <div class="absolute left-[52%] right-[68px] top-[72px] art-small flex justify-between"><span>{{ currentSlide.kicker }}</span><span>SOI EDIT</span></div>
                   <div class="absolute left-[52%] right-[74px] top-[280px]">
-                    <h3 class="art-serif text-[78px] leading-[1.05]">{{ currentSlide.title }}</h3>
+                    <h3 class="art-serif whitespace-pre-line text-[78px] leading-[1.05]" :style="{fontSize:(currentSlide.titleFontSize || 78)+'px'}">{{ currentSlide.title }}</h3>
                     <p class="art-copy mt-12 whitespace-pre-line">{{ currentSlide.body }}</p>
                   </div>
                   <div class="absolute bottom-[65px] left-[52%] right-[68px] border-t border-current/25 pt-5 art-small">{{ currentSlide.footer }}</div>
@@ -715,7 +715,7 @@
                   <div class="absolute inset-0 z-10 flex flex-col justify-between p-[70px] text-white">
                     <div class="flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>FOUND BY SOI</span></div>
                     <div>
-                      <h3 class="art-serif max-w-[900px] text-[104px] leading-[.98] tracking-[-.03em]">{{ currentSlide.title }}</h3>
+                      <h3 class="art-serif max-w-[900px] whitespace-pre-line text-[104px] leading-[.98] tracking-[-.03em]" :style="{fontSize:(currentSlide.titleFontSize || 104)+'px'}">{{ currentSlide.title }}</h3>
                       <p class="mt-10 max-w-[760px] whitespace-pre-line text-[30px] leading-[1.7]">{{ currentSlide.body }}</p>
                     </div>
                     <div class="flex justify-between border-t border-white/40 pt-5 art-small"><span>{{ currentSlide.footer }}</span><span>SOI / BANGKOK</span></div>
@@ -727,7 +727,7 @@
                   <div class="absolute left-[70px] top-[68px] right-[70px] flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>SOI EDIT</span></div>
                   <div class="absolute left-[70px] right-[70px] top-[315px] text-center">
                     <p class="mb-8 text-[25px] tracking-[.22em] opacity-70">FOUND IN BANGKOK</p>
-                    <h3 class="whitespace-pre-line art-serif text-[105px] leading-[.98] tracking-[-.035em]">{{ currentSlide.title }}</h3>
+                    <h3 class="whitespace-pre-line art-serif text-[105px] leading-[.98] tracking-[-.035em]" :style="{fontSize:(currentSlide.titleFontSize || 105)+'px'}">{{ currentSlide.title }}</h3>
                     <p class="mx-auto mt-11 max-w-[740px] whitespace-pre-line text-[30px] leading-[1.7]">{{ currentSlide.body }}</p>
                     <div class="mx-auto mt-14 h-[82px] w-px bg-current opacity-40"></div>
                     <p class="mt-8 text-[23px] font-semibold tracking-[.16em]">{{ form.instagram || '@foundbysoi' }}</p>
@@ -876,6 +876,11 @@
           if (lineCount >= 3) size = Math.min(size, 102);
           if (lineCount >= 4) size = Math.min(size, 90);
           return size;
+        });
+        const currentDefaultTitleFontSize = computed(() => {
+          if (currentSlide.value.layout === 'cover') return coverFontSize.value;
+          const sizes = { intro:88, quote:82, details:74, curation:82, products:76, split:78, closing:104, cta:105 };
+          return sizes[currentSlide.value.layout] || 82;
         });
         const cityShort = computed(() => (form.city || 'BANGKOK').split(',')[0].toUpperCase());
         const availableMedia = computed(() => images.value.length ? images.value : demoImages.map((src,index)=>({src,name:`示範圖 ${index+1}`})));
@@ -1325,7 +1330,7 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，內容
 
         return {
           steps,themes,palettes,form,activeStep,aiInput,aiResult,aiError,promptCopied,images,slides,currentIndex,dragSlideIndex,dragging,exporting,exportMessage,toast,saveStatus,artboard,artboardShell,
-          selectedPalette,artboardStyle,currentSlide,coverFontSize,cityShort,availableMedia,productItems,researchPrompt,
+          selectedPalette,artboardStyle,currentSlide,coverFontSize,currentDefaultTitleFontSize,cityShort,availableMedia,productItems,researchPrompt,
           generateSlides,updateSeries,syncCoverText,generateCaption,copyCaption,copyResearchPrompt,applyAIResult,mediaSource,handleFiles,onDrop,removeImage,makeCover,moveSlide,dropSlide,duplicateSlide,deleteSlide,downloadCurrent,downloadAll,resetProject,scheduleSave
         };
       }
