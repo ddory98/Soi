@@ -390,6 +390,11 @@
                 <span class="field-label">推薦單品 <small>每行一項，用｜分隔</small></span>
                 <textarea v-model="form.productsText" @input="scheduleSave" class="field min-h-[116px]" placeholder="CARRY POUCH｜輕巧、防潑水，適合日常使用&#10;SOFT TOTE｜低飽和色彩與柔軟輪廓"></textarea>
               </label>
+              <label class="block">
+                <span class="field-label">產品顏色 <small>每行一色，用｜分隔</small></span>
+                <textarea v-model="form.colorsText" @input="scheduleSave" class="field min-h-[116px]" placeholder="紅色｜吸睛、有活力&#10;粉紅色｜甜而不膩，溫柔可愛&#10;深棕色｜復古耐看，很有質感"></textarea>
+                <p class="mt-1.5 text-[10px] leading-4 text-[#96988f]">之後可在編輯區新增 2～6 格的產品顏色頁。</p>
+              </label>
               <div class="grid gap-4 sm:grid-cols-2">
                 <label>
                   <span class="field-label">Instagram 帳號</span>
@@ -547,6 +552,14 @@
                     <button @click="currentSlide.titleFontSize=104; scheduleSave()" class="rounded-xl bg-white px-2 py-2 text-[10px] font-semibold">大</button>
                     <button @click="currentSlide.titleFontSize=null; scheduleSave()" class="rounded-xl bg-[#eff0e8] px-2 py-2 text-[10px] font-semibold text-[#626a52]">自動</button>
                   </div>
+                  <div class="mt-4 border-t border-[#deded7] pt-4">
+                    <span class="field-label">目前頁面標題字型</span>
+                    <div class="grid grid-cols-3 gap-2">
+                      <button @click="currentSlide.titleFont='auto'; scheduleSave()" class="rounded-xl px-2 py-2.5 text-[10px] font-semibold transition" :class="!currentSlide.titleFont || currentSlide.titleFont==='auto' ? 'bg-ink text-white' : 'bg-white text-[#6f7169]'">自動</button>
+                      <button @click="currentSlide.titleFont='sans'; scheduleSave()" class="rounded-xl px-2 py-2.5 text-[10px] font-semibold transition" :class="currentSlide.titleFont==='sans' ? 'bg-ink text-white' : 'bg-white text-[#6f7169]'">黑體</button>
+                      <button @click="currentSlide.titleFont='serif'; scheduleSave()" class="rounded-xl px-2 py-2.5 text-[10px] font-['DM_Serif_Display'] transition" :class="currentSlide.titleFont==='serif' ? 'bg-ink text-white' : 'bg-white text-[#6f7169]'">襯線體</button>
+                    </div>
+                  </div>
                 </div>
                 <label class="block">
                   <span class="field-label">內文 <small>{{ currentSlide.body.length }}/180</small></span>
@@ -558,11 +571,21 @@
                   <input v-model="currentSlide.footer" @input="scheduleSave" class="field" />
                 </label>
                 <label class="block">
-                  <span class="field-label">使用照片</span>
+                  <span class="field-label">{{ currentSlide.layout==='colors' ? '第一格照片' : '使用照片' }}</span>
                   <select v-model.number="currentSlide.mediaIndex" @change="scheduleSave" class="field">
                     <option v-for="(photo,index) in availableMedia" :key="index" :value="index">照片 {{ index+1 }}{{ images.length ? '' : '（示範）' }}</option>
                   </select>
                 </label>
+                <div v-if="currentSlide.layout==='colors'" class="rounded-2xl border hairline bg-[#faf9f6] p-4">
+                  <div class="mb-3 flex items-center justify-between gap-3">
+                    <span class="field-label !mb-0">產品顏色格數</span>
+                    <span class="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-[#6f7169]">{{ currentSlide.colorCount || 3 }} 格</span>
+                  </div>
+                  <div class="grid grid-cols-5 gap-2">
+                    <button v-for="count in [2,3,4,5,6]" :key="count" @click="currentSlide.colorCount=count; scheduleSave()" class="rounded-xl px-2 py-2.5 text-[10px] font-semibold transition" :class="Number(currentSlide.colorCount || 3)===count ? 'bg-ink text-white' : 'bg-white text-[#6f7169]'">{{ count }}</button>
+                  </div>
+                  <p class="mt-3 text-[10px] leading-4 text-[#96988f]">將從「第一格照片」開始，依照照片順序放入每一格。</p>
+                </div>
                 <div v-if="cropSupported" class="rounded-2xl border hairline bg-[#faf9f6] p-4">
                   <div class="mb-4 flex items-start justify-between gap-3">
                     <div>
@@ -590,6 +613,7 @@
                   <button @click="duplicateSlide" class="rounded-2xl border hairline bg-white px-4 py-3 text-xs font-medium transition hover:bg-mist">複製這一頁</button>
                   <button @click="deleteSlide" :disabled="slides.length<=2" class="rounded-2xl border border-[#d8c7bf] bg-[#fbf5f2] px-4 py-3 text-xs font-medium text-[#9a5f4b] transition hover:bg-[#f7ebe6] disabled:opacity-40">刪除這一頁</button>
                 </div>
+                <button @click="addColorSlide" class="w-full rounded-2xl bg-[#eff0e8] px-4 py-3 text-xs font-semibold text-[#626a52] transition hover:bg-[#e5e8dc]">＋ 在後面新增產品顏色頁</button>
                 <p class="rounded-2xl bg-[#f1f0ea] p-4 text-[11px] leading-5 text-[#777970]">下方縮圖可以拖曳排序；手機上可使用左右箭頭移動頁面。</p>
               </template>
               <details class="group rounded-[18px] border hairline bg-white/70 p-4">
@@ -618,6 +642,7 @@
               <span class="text-[11px] text-[#777970]">1080 × 1350 px</span>
             </div>
             <div class="flex items-center gap-2">
+              <button @click="deleteSlide" :disabled="slides.length<=2" class="min-h-9 rounded-full border border-[#d8c7bf] bg-[#fbf5f2] px-3 text-[10px] font-semibold text-[#9a5f4b] transition hover:bg-[#f7ebe6] disabled:opacity-35" aria-label="刪除目前頁面">刪除此頁</button>
               <button @click="moveSlide(-1)" :disabled="currentIndex===0" class="grid h-9 w-9 place-items-center rounded-full bg-white text-sm shadow-sm transition hover:bg-[#f7f6f1] disabled:opacity-35" aria-label="上一張">←</button>
               <span class="min-w-[50px] text-center text-xs font-semibold">{{ String(currentIndex+1).padStart(2,'0') }} / {{ String(slides.length).padStart(2,'0') }}</span>
               <button @click="moveSlide(1)" :disabled="currentIndex===slides.length-1" class="grid h-9 w-9 place-items-center rounded-full bg-white text-sm shadow-sm transition hover:bg-[#f7f6f1] disabled:opacity-35" aria-label="下一張">→</button>
@@ -645,7 +670,7 @@
                     </div>
 
                     <div class="absolute bottom-[76px] left-[82px] right-[82px] top-[400px] flex flex-col">
-                      <h3 class="cover-title art-serif max-w-[820px] whitespace-pre-line" :style="{fontSize:(currentSlide.titleFontSize || currentDefaultTitleFontSize)+'px'}">{{ currentSlide.title }}</h3>
+                      <h3 class="cover-title art-serif max-w-[820px] whitespace-pre-line" :style="titleStyle(currentSlide,currentDefaultTitleFontSize)">{{ currentSlide.title }}</h3>
                       <div class="mt-auto grid grid-cols-[1fr_auto] items-end gap-14 border-t border-current/50 pt-8">
                         <div class="max-w-[690px]">
                           <p class="mb-4 text-[18px] font-semibold tracking-[.14em]">{{ form.brand || 'BRAND FEATURE' }}</p>
@@ -663,7 +688,7 @@
                   </div>
                   <div class="absolute left-[72px] top-[155px] h-[2px] w-[936px] bg-current opacity-30"></div>
                   <div class="absolute left-[72px] top-[215px] w-[540px]">
-                    <h3 class="art-serif whitespace-pre-line text-[88px] leading-[1.03] tracking-[-.025em]" :style="{fontSize:(currentSlide.titleFontSize || 88)+'px'}">{{ currentSlide.title }}</h3>
+                    <h3 class="art-serif whitespace-pre-line text-[88px] leading-[1.03] tracking-[-.025em]" :style="titleStyle(currentSlide,88)">{{ currentSlide.title }}</h3>
                     <p class="art-copy mt-12 whitespace-pre-line">{{ currentSlide.body }}</p>
                   </div>
                   <div class="absolute bottom-[76px] right-[66px] h-[570px] w-[350px] overflow-hidden" :class="form.theme==='notes' ? 'rotate-[2deg] shadow-[18px_20px_0_rgba(32,35,31,.10)]' : ''">
@@ -676,7 +701,7 @@
                   <div class="absolute inset-x-[70px] top-[66px] flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>FOUND BY SOI</span></div>
                   <div class="quote-mark absolute left-[86px] top-[254px] text-[130px] leading-none opacity-20">“</div>
                   <div class="absolute left-[148px] right-[126px] top-[360px]">
-                    <h3 class="art-serif whitespace-pre-line text-[82px] leading-[1.22] tracking-[-.025em]" :style="{fontSize:(currentSlide.titleFontSize || 82)+'px'}">{{ currentSlide.title }}</h3>
+                    <h3 class="art-serif whitespace-pre-line text-[82px] leading-[1.22] tracking-[-.025em]" :style="titleStyle(currentSlide,82)">{{ currentSlide.title }}</h3>
                     <div class="mt-14 h-[2px] w-[180px] bg-current opacity-45"></div>
                     <p class="art-copy mt-12 max-w-[720px] whitespace-pre-line">{{ currentSlide.body }}</p>
                   </div>
@@ -690,7 +715,7 @@
                   </div>
                   <div class="absolute left-[68px] top-[60px] rounded-full bg-[var(--paper)]/90 px-6 py-3 art-small">{{ currentSlide.kicker }}</div>
                   <div class="absolute left-[68px] right-[68px] top-[815px] grid grid-cols-[1.05fr_.95fr] gap-[64px]">
-                    <h3 class="art-serif whitespace-pre-line text-[74px] leading-[1.02] tracking-[-.02em]" :style="{fontSize:(currentSlide.titleFontSize || 74)+'px'}">{{ currentSlide.title }}</h3>
+                    <h3 class="art-serif whitespace-pre-line text-[74px] leading-[1.02] tracking-[-.02em]" :style="titleStyle(currentSlide,74)">{{ currentSlide.title }}</h3>
                     <p class="whitespace-pre-line text-[27px] leading-[1.72]">{{ currentSlide.body }}</p>
                   </div>
                   <div class="absolute bottom-[54px] left-[68px] right-[68px] flex justify-between border-t border-current/25 pt-5 art-small"><span>{{ currentSlide.footer }}</span><span>SOI EDIT</span></div>
@@ -703,7 +728,7 @@
                   <div class="absolute right-[72px] top-[66px] text-right art-small">EDITOR'S NOTE</div>
                   <div class="absolute bottom-[120px] left-[70px] right-[70px]">
                     <p class="art-kicker mb-8 text-sage">{{ currentSlide.kicker }}</p>
-                    <h3 class="art-serif max-w-[900px] whitespace-pre-line text-[82px] leading-[1.02] tracking-[-.025em]" :style="{fontSize:(currentSlide.titleFontSize || 82)+'px'}">{{ currentSlide.title }}</h3>
+                    <h3 class="art-serif max-w-[900px] whitespace-pre-line text-[82px] leading-[1.02] tracking-[-.025em]" :style="titleStyle(currentSlide,82)">{{ currentSlide.title }}</h3>
                     <div class="mt-11 grid grid-cols-[170px_1fr] gap-12 border-t border-current/30 pt-9">
                       <p class="art-small leading-7">SELECTED<br/>WITH A<br/>POINT OF VIEW</p>
                       <p class="art-copy whitespace-pre-line">{{ currentSlide.body }}</p>
@@ -714,7 +739,7 @@
 
                 <template v-else-if="currentSlide.layout==='products'">
                   <div class="absolute left-[70px] right-[70px] top-[62px] flex items-end justify-between border-b border-current/25 pb-6">
-                    <div><p class="art-kicker">{{ currentSlide.kicker }}</p><h3 class="art-serif mt-4 whitespace-pre-line text-[76px] leading-none" :style="{fontSize:(currentSlide.titleFontSize || 76)+'px'}">{{ currentSlide.title }}</h3></div>
+                    <div><p class="art-kicker">{{ currentSlide.kicker }}</p><h3 class="art-serif mt-4 whitespace-pre-line text-[76px] leading-none" :style="titleStyle(currentSlide,76)">{{ currentSlide.title }}</h3></div>
                     <span class="art-small">SOI EDIT</span>
                   </div>
                   <div class="absolute left-[70px] right-[70px] top-[260px] grid grid-cols-2 gap-[26px]">
@@ -727,11 +752,31 @@
                   <div class="absolute bottom-[52px] right-[70px] art-small">{{ currentSlide.footer }}</div>
                 </template>
 
+                <template v-else-if="currentSlide.layout==='colors'">
+                  <div class="absolute left-[70px] right-[70px] top-[60px] flex items-start justify-between border-b border-current/25 pb-6">
+                    <div class="max-w-[820px]">
+                      <p class="art-kicker">{{ currentSlide.kicker }}</p>
+                      <h3 class="art-serif mt-4 whitespace-pre-line text-[72px] leading-[1.02] tracking-[-.025em]" :style="titleStyle(currentSlide,72)">{{ currentSlide.title }}</h3>
+                    </div>
+                    <span class="art-small">COLOR EDIT</span>
+                  </div>
+                  <div class="absolute bottom-[78px] left-[70px] right-[70px] top-[260px] grid gap-[20px]" :style="colorGridStyle(currentSlide)">
+                    <div v-for="(color,index) in colorItems.slice(0,Number(currentSlide.colorCount || 3))" :key="index" class="relative min-h-0 overflow-hidden bg-black/5">
+                      <img :src="mediaSource(Number(currentSlide.mediaIndex || 0)+index)" :alt="color.name" class="image-fill" />
+                      <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-6 pb-6 pt-16 text-white">
+                        <p class="text-[28px] font-semibold tracking-[.04em]">{{ color.name }}</p>
+                        <p v-if="color.description" class="mt-2 text-[19px] leading-[1.5] text-white/85">{{ color.description }}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="absolute bottom-[46px] left-[70px] right-[70px] flex justify-between art-small"><span>{{ currentSlide.footer }}</span><span>FOUND BY SOI</span></div>
+                </template>
+
                 <template v-else-if="currentSlide.layout==='split'">
                   <div class="absolute left-0 top-0 h-full w-[46%] overflow-hidden"><img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌情境" class="image-fill crop-image" :style="imageStyle(currentSlide)" draggable="false" /></div>
                   <div class="absolute left-[52%] right-[68px] top-[72px] art-small flex justify-between"><span>{{ currentSlide.kicker }}</span><span>SOI EDIT</span></div>
                   <div class="absolute left-[52%] right-[74px] top-[280px]">
-                    <h3 class="art-serif whitespace-pre-line text-[78px] leading-[1.05]" :style="{fontSize:(currentSlide.titleFontSize || 78)+'px'}">{{ currentSlide.title }}</h3>
+                    <h3 class="art-serif whitespace-pre-line text-[78px] leading-[1.05]" :style="titleStyle(currentSlide,78)">{{ currentSlide.title }}</h3>
                     <p class="art-copy mt-12 whitespace-pre-line">{{ currentSlide.body }}</p>
                   </div>
                   <div class="absolute bottom-[65px] left-[52%] right-[68px] border-t border-current/25 pt-5 art-small">{{ currentSlide.footer }}</div>
@@ -742,7 +787,7 @@
                   <div class="absolute inset-0 z-10 flex flex-col justify-between p-[70px] text-white">
                     <div class="flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>FOUND BY SOI</span></div>
                     <div>
-                      <h3 class="art-serif max-w-[900px] whitespace-pre-line text-[104px] leading-[.98] tracking-[-.03em]" :style="{fontSize:(currentSlide.titleFontSize || 104)+'px'}">{{ currentSlide.title }}</h3>
+                      <h3 class="art-serif max-w-[900px] whitespace-pre-line text-[104px] leading-[.98] tracking-[-.03em]" :style="titleStyle(currentSlide,104)">{{ currentSlide.title }}</h3>
                       <p class="mt-10 max-w-[760px] whitespace-pre-line text-[30px] leading-[1.7]">{{ currentSlide.body }}</p>
                     </div>
                     <div class="flex justify-between border-t border-white/40 pt-5 art-small"><span>{{ currentSlide.footer }}</span><span>SOI / BANGKOK</span></div>
@@ -754,7 +799,7 @@
                   <div class="absolute left-[70px] top-[68px] right-[70px] flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>SOI EDIT</span></div>
                   <div class="absolute left-[70px] right-[70px] top-[315px] text-center">
                     <p class="mb-8 text-[25px] tracking-[.22em] opacity-70">FOUND IN BANGKOK</p>
-                    <h3 class="whitespace-pre-line art-serif text-[105px] leading-[.98] tracking-[-.035em]" :style="{fontSize:(currentSlide.titleFontSize || 105)+'px'}">{{ currentSlide.title }}</h3>
+                    <h3 class="whitespace-pre-line art-serif text-[105px] leading-[.98] tracking-[-.035em]" :style="titleStyle(currentSlide,105)">{{ currentSlide.title }}</h3>
                     <p class="mx-auto mt-11 max-w-[740px] whitespace-pre-line text-[30px] leading-[1.7]">{{ currentSlide.body }}</p>
                     <div class="mx-auto mt-14 h-[82px] w-px bg-current opacity-40"></div>
                     <p class="mt-8 text-[23px] font-semibold tracking-[.16em]">{{ form.instagram || '@foundbysoi' }}</p>
@@ -781,7 +826,7 @@
                     <span class="absolute inset-x-2 bottom-2 text-[6px] font-semibold uppercase leading-tight text-white">{{ slide.title.slice(0,34) }}</span>
                   </template>
                   <template v-else>
-                    <img v-if="['intro','details','curation','split','closing'].includes(slide.layout)" :src="mediaSource(slide.mediaIndex)" alt="" class="h-[58%] w-full object-cover" />
+                    <img v-if="['intro','details','curation','colors','split','closing'].includes(slide.layout)" :src="mediaSource(slide.mediaIndex)" alt="" class="h-[58%] w-full object-cover" />
                     <span class="block px-2 pt-2 text-[6px] font-semibold uppercase leading-tight" :style="{color:selectedPalette.ink}">{{ slide.title.slice(0,34) }}</span>
                   </template>
                 </span>
@@ -838,6 +883,7 @@
           philosophy: '低飽和色彩、柔和輪廓與實用結構，讓物件自然融入日常。\n\n細節不喧鬧，使用後才慢慢被看見。',
           reason: '我們喜歡它安靜、耐看的樣子。\n\n不是只為了拍照，而是真的能留在每天的生活裡。',
           productsText: 'CARRY POUCH｜輕巧、防潑水，收好每天的小東西\nSOFT TOTE｜低飽和色彩與柔軟輪廓\nDAILY TRAY｜讓桌面日常剛剛好\nMINI CASE｜簡單又耐看的收納物件',
+          colorsText: '',
           instagram: '@foundbysoi',
           source: 'BRAND OFFICIAL / SOI EDIT',
           references: '',
@@ -909,7 +955,7 @@
         });
         const currentDefaultTitleFontSize = computed(() => {
           if (currentSlide.value.layout === 'cover') return coverFontSize.value;
-          const sizes = { intro:88, quote:82, details:74, curation:82, products:76, split:78, closing:104, cta:105 };
+          const sizes = { intro:88, quote:82, details:74, curation:82, products:76, colors:72, split:78, closing:104, cta:105 };
           return sizes[currentSlide.value.layout] || 82;
         });
         const cityShort = computed(() => (form.city || 'BANGKOK').split(',')[0].toUpperCase());
@@ -920,6 +966,14 @@
             return { name: (name || 'SELECTED ITEM').trim(), description: (rest.join('｜') || 'SOI selected object.').trim() };
           });
           return parsed.length ? parsed : [{name:'SELECTED ITEM',description:'SOI selected object.'}];
+        });
+        const colorItems = computed(() => {
+          const parsed = String(form.colorsText || '').split('\n').filter(line => line.trim()).map(line => {
+            const [name, ...rest] = line.split(/[｜|]/);
+            return { name:(name || 'COLOR').trim(), description:rest.join('｜').trim() };
+          });
+          const fallbacks = ['COLOR 01','COLOR 02','COLOR 03','COLOR 04','COLOR 05','COLOR 06'];
+          return fallbacks.map((name,index) => parsed[index] || {name,description:'可在品牌資料中填寫色名與介紹'});
         });
         const researchPrompt = computed(() => {
           const toneMap = {
@@ -975,6 +1029,7 @@ ${aiInput.products || '（尚未填寫）'}
 27. 每頁必須有不同的 focus。例如：內裡細節、容量與重量、開口與收納、材質、顏色、尺寸規格、搭配情境、品牌背景、SOI 觀點。沒有資料的 focus 直接略過並改用另一個已查證重點。
 28. 禁止為了湊頁數，把「輕量適合旅行」改寫成「重量輕出門方便」放到另一頁；這仍視為重複。標題句型與 emoji 也要交錯，不能每頁都使用「最……的地方」或「真的很加分」。
 29. 輸出前逐頁比對 title 與 body；若兩頁在說同一特色、使用情境或結論，必須重寫其中一頁。封面、carousel 與 caption 可以呼應，但 carousel 內頁彼此不得重複。
+30. 若官方資料有多個產品顏色，請另外整理 colors；名稱保留官方色名，description 只寫 12 至 28 字的色彩印象或搭配感，不得虛構限定、熱銷或人氣排名。
 
 【節奏示意】
 只參考結構與口吻，不要照抄句子，也不要套用示意中的商品特色：
@@ -999,6 +1054,9 @@ ${aiInput.products || '（尚未填寫）'}
   "reason": "35 至 60 字、最多兩個短段落的 SOI 選物理由草稿",
   "products": [
     {"name": "商品正式名稱", "description": "25 至 50 字、用短句整理材質、尺寸、容量、功能、顏色或設計細節等可驗證特色"}
+  ],
+  "colors": [
+    {"name": "官方產品色名", "description": "12 至 28 字的色彩印象或搭配感"}
   ],
   "source_label": "適合放在版面頁尾的短來源標示",
   "sources": [
@@ -1146,6 +1204,12 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁。先依
               const description = asText(item?.description);
               return description ? `${name}｜${description}` : name;
             }).filter(Boolean) : [];
+            const colors = Array.isArray(data.colors) ? data.colors.map(item => {
+              if (typeof item === 'string') return item.trim();
+              const name = asText(item?.name) || 'COLOR';
+              const description = asText(item?.description);
+              return description ? `${name}｜${description}` : name;
+            }).filter(Boolean) : [];
             const sources = Array.isArray(data.sources) ? data.sources.map(source => {
               if (typeof source === 'string') return source.trim();
               const title = asText(source?.title);
@@ -1164,6 +1228,7 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁。先依
               philosophy: asText(data.philosophy) || form.philosophy,
               reason: asText(data.reason) || form.reason,
               productsText: products.length ? products.join('\n') : form.productsText,
+              colorsText: colors.length ? colors.join('\n') : form.colorsText,
               source: asText(data.source_label) || 'BRAND OFFICIAL / SOI EDIT',
               references: sources.join('\n'),
               caption: asText(data.caption)
@@ -1201,6 +1266,30 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁。先依
             transform: `scale(${zoom})`,
             transformOrigin: `${x}% ${y}%`
           };
+        }
+
+        function colorGridStyle(slide) {
+          const count = Math.min(6,Math.max(2,Number(slide?.colorCount || 3)));
+          const columns = count === 2 || count === 4 ? 2 : 3;
+          const rows = Math.ceil(count / columns);
+          return {
+            gridTemplateColumns:`repeat(${columns}, minmax(0, 1fr))`,
+            gridTemplateRows:`repeat(${rows}, minmax(0, 1fr))`
+          };
+        }
+
+        function titleStyle(slide, defaultSize) {
+          const style = { fontSize:`${Number(slide?.titleFontSize || defaultSize)}px` };
+          if (slide?.titleFont === 'sans') {
+            style.fontFamily = 'Inter, "Noto Sans TC", sans-serif';
+            style.fontWeight = '600';
+            style.fontStyle = 'normal';
+          } else if (slide?.titleFont === 'serif') {
+            style.fontFamily = '"DM Serif Display", "Noto Serif TC", serif';
+            style.fontWeight = '400';
+            style.fontStyle = 'normal';
+          }
+          return style;
         }
 
         function resetImageCrop() {
@@ -1308,8 +1397,30 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁。先依
           currentIndex.value += 1;
           scheduleSave(); showToast('已複製頁面');
         }
+        function addColorSlide() {
+          const enteredColors = String(form.colorsText || '').split('\n').filter(line=>line.trim()).length;
+          const slide = {
+            id:crypto.randomUUID(),
+            layout:'colors',
+            kicker:'COLOR EDIT',
+            title:'每一個顏色，\n都有自己的個性。',
+            body:'',
+            footer:form.brand || 'FOUND BY SOI',
+            mediaIndex:0,
+            colorCount:Math.min(6,Math.max(2,enteredColors || 3)),
+            titleFontSize:null
+          };
+          const insertIndex = currentSlide.value.layout === 'cta' ? currentIndex.value : currentIndex.value + 1;
+          slides.value.splice(insertIndex,0,slide);
+          currentIndex.value = insertIndex;
+          activeStep.value = 'edit';
+          scheduleSave();
+          showToast('已新增產品顏色頁');
+        }
         function deleteSlide() {
-          if (slides.value.length <= 2) return;
+          if (slides.value.length <= 2) { showToast('至少需要保留兩頁'); return; }
+          const pageNumber = currentIndex.value + 1;
+          if (!window.confirm(`確定刪除第 ${pageNumber} 頁嗎？`)) return;
           slides.value.splice(currentIndex.value,1);
           currentIndex.value = Math.min(currentIndex.value,slides.value.length-1);
           scheduleSave(); showToast('頁面已刪除');
@@ -1424,8 +1535,8 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁。先依
 
         return {
           steps,themes,palettes,form,activeStep,aiInput,aiResult,aiError,promptCopied,images,slides,currentIndex,dragSlideIndex,dragging,isCropping,exporting,exportMessage,toast,saveStatus,artboard,artboardShell,
-          selectedPalette,artboardStyle,currentSlide,cropSupported,coverFontSize,currentDefaultTitleFontSize,cityShort,availableMedia,productItems,researchPrompt,
-          generateSlides,updateSeries,syncCoverText,generateCaption,copyCaption,copyResearchPrompt,applyAIResult,mediaSource,imageStyle,resetImageCrop,startImageDrag,moveImageDrag,endImageDrag,handleFiles,onDrop,removeImage,makeCover,moveSlide,dropSlide,duplicateSlide,deleteSlide,downloadCurrent,downloadAll,resetProject,scheduleSave
+          selectedPalette,artboardStyle,currentSlide,cropSupported,coverFontSize,currentDefaultTitleFontSize,cityShort,availableMedia,productItems,colorItems,researchPrompt,
+          generateSlides,updateSeries,syncCoverText,generateCaption,copyCaption,copyResearchPrompt,applyAIResult,mediaSource,imageStyle,colorGridStyle,titleStyle,resetImageCrop,startImageDrag,moveImageDrag,endImageDrag,handleFiles,onDrop,removeImage,makeCover,moveSlide,dropSlide,duplicateSlide,addColorSlide,deleteSlide,downloadCurrent,downloadAll,resetProject,scheduleSave
         };
       }
     }).mount('#app');
