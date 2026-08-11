@@ -971,6 +971,10 @@ ${aiInput.products || '（尚未填寫）'}
 23. 每頁最多使用 1 至 2 個適合語意的 emoji，例如 ✨、💕、🤎、☺️、🔥；不必每句都有，也不要連續堆疊。
 24. 如果商品有多個顏色，且官方資料能確認，請用「顏色名稱／1 至 2 行色彩印象或搭配感」分開介紹。尺寸、背帶長度、重量等規格請獨立成行，保留原始單位，不要改寫或猜測。
 25. 可以把「輕、容量夠、拉鍊、內袋、防潑水」等特色轉成通勤、搭車或旅行情境，但前提是該特色有可靠來源；不能把合理推測寫成已實際使用的心得。
+26. 撰寫 carousel 前，先在心中整理一份「已查證特色清單」，並把每個特色只分配給一頁；同一個事實與同一個使用好處不能出現在兩頁。
+27. 每頁必須有不同的 focus。例如：內裡細節、容量與重量、開口與收納、材質、顏色、尺寸規格、搭配情境、品牌背景、SOI 觀點。沒有資料的 focus 直接略過並改用另一個已查證重點。
+28. 禁止為了湊頁數，把「輕量適合旅行」改寫成「重量輕出門方便」放到另一頁；這仍視為重複。標題句型與 emoji 也要交錯，不能每頁都使用「最……的地方」或「真的很加分」。
+29. 輸出前逐頁比對 title 與 body；若兩頁在說同一特色、使用情境或結論，必須重寫其中一頁。封面、carousel 與 caption 可以呼應，但 carousel 內頁彼此不得重複。
 
 【節奏示意】
 只參考結構與口吻，不要照抄句子，也不要套用示意中的商品特色：
@@ -1001,12 +1005,12 @@ ${aiInput.products || '（尚未填寫）'}
     {"title": "來源名稱", "url": "完整網址"}
   ],
   "carousel": [
-    {"kicker": "第 2 頁起的短標示", "title": "6 至 16 字、像聊天時會說的吸睛短標，可使用最多一個 emoji", "body": "24 至 55 字，只講一個商品重點；一句一行，使用 \\n 分成 2 至 4 行"}
+    {"focus": "這一頁唯一負責的特色關鍵字，不得與其他頁重複", "kicker": "第 2 頁起的短標示", "title": "6 至 16 字、像聊天時會說的吸睛短標，可使用最多一個 emoji", "body": "24 至 55 字，只講 focus 指定的商品重點；一句一行，使用 \\n 分成 2 至 4 行"}
   ],
   "caption": "120 至 180 字的精簡 IG 文案：像分享給姐妹，短句分行，第一段是 Hook，全文 3 至 4 個短段落、段落間空一行，最後加入一句自然引導與 5 至 8 個 hashtag"
 }
 
-carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，內容以商品特色為主，依序涵蓋：第一眼注意到的商品亮點、必要的品牌背景、外型與設計細節、材質／尺寸／容量／功能等已查證資訊、放進哪些日常情境會很自然、SOI 想分享它的理由。若某項資料查不到就略過，不得自行補寫；頁數不足時合併相近主題。不要包含封面與最後 CTA。`;
+carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁。先依實際查到的資料，從以下方向挑選互不重複的 focus：第一眼商品亮點、內裡或外型細節、材質、容量與重量、開口與收納功能、顏色差異、尺寸規格、搭配或攜帶情境、必要的品牌背景、SOI 想分享它的理由。每個 focus 只能使用一次；某項資料查不到就換下一個，不得自行補寫，也不能把相同特色換句話說來湊頁數。不要包含封面與最後 CTA。`;
         });
 
         const labels = computed(() => {
@@ -1017,6 +1021,9 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，內容
 
         function slidePool() {
           const brand = form.brand || 'YOUR BRAND';
+          const featureParts = String(form.philosophy || '').split(/\n\s*\n/).map(part => part.trim()).filter(Boolean);
+          const primaryFeature = featureParts[0] || '先從最吸引人的商品細節開始認識。';
+          const secondaryFeature = featureParts.slice(1).join('\n\n') || productItems.value[0]?.description || '再看看材質、結構與使用方式。';
           const storyTitle = form.language === 'en' ? 'A quiet point of view, made for everyday life.' : '最近認識的這個品牌，滿有意思。';
           const quoteTitle = form.tagline || '好的物件，不急著被看見。';
           const detailsTitle = form.language === 'en' ? 'Details that reveal themselves over time.' : '第一眼好看，細看還有這些小地方。';
@@ -1024,8 +1031,8 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，內容
           return [
             { id: crypto.randomUUID(), layout:'cover', kicker:`${form.series || labels.value.cover} / ${form.category}`, title:form.hook || form.tagline || '值得認識的日常選物。', body:form.tagline, footer:form.city || 'BANGKOK, THAILAND', mediaIndex:0, titleFontSize:null },
             { id: crypto.randomUUID(), layout:'intro', kicker:labels.value.story, title:storyTitle, body:form.story, footer:form.source || 'BRAND OFFICIAL / SOI EDIT', mediaIndex:1 },
-            { id: crypto.randomUUID(), layout:'quote', kicker:labels.value.quote, title:quoteTitle, body:form.philosophy, footer:brand, mediaIndex:2 },
-            { id: crypto.randomUUID(), layout:'details', kicker:labels.value.details, title:detailsTitle, body:form.philosophy, footer:'FORM / MATERIAL / EVERYDAY', mediaIndex:2 },
+            { id: crypto.randomUUID(), layout:'quote', kicker:labels.value.quote, title:quoteTitle, body:primaryFeature, footer:brand, mediaIndex:2 },
+            { id: crypto.randomUUID(), layout:'details', kicker:labels.value.details, title:detailsTitle, body:secondaryFeature, footer:'FORM / MATERIAL / EVERYDAY', mediaIndex:2 },
             { id: crypto.randomUUID(), layout:'curation', kicker:labels.value.curation, title:reasonTitle, body:form.reason, footer:`SELECTED BY SOI · ${cityShort.value}`, mediaIndex:3 },
             { id: crypto.randomUUID(), layout:'products', kicker:labels.value.products, title:'如果第一次看，可以先從這幾件開始。', body:'不用一次看完，先挑一件最像妳日常會用到的。', footer:brand, mediaIndex:0 },
             { id: crypto.randomUUID(), layout:'split', kicker:labels.value.city, title:`Found in ${cityShort.value}.`, body:`我們在城市裡尋找的不只是紀念品，\n而是能把一段故事帶回家的物件。`, footer:'CURATED FROM BANGKOK.', mediaIndex:1 },
