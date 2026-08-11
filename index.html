@@ -133,6 +133,9 @@
     .art-small { font-size: 18px; letter-spacing: .1em; }
     .art-rule { height: 2px; background: currentColor; opacity: .55; }
     .image-fill { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .crop-image { will-change: transform, object-position; }
+    .artboard.crop-enabled { cursor: grab; touch-action: none; user-select: none; }
+    .artboard.crop-enabled.crop-dragging { cursor: grabbing; }
     .image-wash::after {
       content: '';
       position: absolute;
@@ -560,6 +563,29 @@
                     <option v-for="(photo,index) in availableMedia" :key="index" :value="index">照片 {{ index+1 }}{{ images.length ? '' : '（示範）' }}</option>
                   </select>
                 </label>
+                <div v-if="cropSupported" class="rounded-2xl border hairline bg-[#faf9f6] p-4">
+                  <div class="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <span class="field-label !mb-0">照片裁切與位置</span>
+                      <p class="mt-1 text-[10px] leading-4 text-[#96988f]">可直接拖曳右側預覽照片，手機也能操作。</p>
+                    </div>
+                    <button @click="resetImageCrop" class="shrink-0 rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold text-[#6f7169]">置中重設</button>
+                  </div>
+                  <div class="space-y-4">
+                    <label class="block">
+                      <span class="mb-2 flex items-center justify-between text-[10px] font-semibold"><span>放大裁切</span><span>{{ Math.round((currentSlide.imageZoom || 1) * 100) }}%</span></span>
+                      <input type="range" min="1" max="2.2" step="0.05" :value="currentSlide.imageZoom || 1" @input="currentSlide.imageZoom=Number($event.target.value); scheduleSave()" class="w-full accent-[#747b63]" />
+                    </label>
+                    <label class="block">
+                      <span class="mb-2 flex items-center justify-between text-[10px] font-semibold"><span>水平位置</span><span>{{ Math.round(currentSlide.imageX ?? 50) }}%</span></span>
+                      <input type="range" min="0" max="100" step="1" :value="currentSlide.imageX ?? 50" @input="currentSlide.imageX=Number($event.target.value); scheduleSave()" class="w-full accent-[#747b63]" />
+                    </label>
+                    <label class="block">
+                      <span class="mb-2 flex items-center justify-between text-[10px] font-semibold"><span>垂直位置</span><span>{{ Math.round(currentSlide.imageY ?? 50) }}%</span></span>
+                      <input type="range" min="0" max="100" step="1" :value="currentSlide.imageY ?? 50" @input="currentSlide.imageY=Number($event.target.value); scheduleSave()" class="w-full accent-[#747b63]" />
+                    </label>
+                  </div>
+                </div>
                 <div class="grid grid-cols-2 gap-3">
                   <button @click="duplicateSlide" class="rounded-2xl border hairline bg-white px-4 py-3 text-xs font-medium transition hover:bg-mist">複製這一頁</button>
                   <button @click="deleteSlide" :disabled="slides.length<=2" class="rounded-2xl border border-[#d8c7bf] bg-[#fbf5f2] px-4 py-3 text-xs font-medium text-[#9a5f4b] transition hover:bg-[#f7ebe6] disabled:opacity-40">刪除這一頁</button>
@@ -600,10 +626,11 @@
 
           <div class="flex justify-center">
             <div ref="artboardShell" class="artboard-shell rounded-[4px]">
-              <div ref="artboard" class="artboard" :class="[`layout-${currentSlide.layout}`, form.theme]" :style="artboardStyle">
+              <div ref="artboard" class="artboard" :class="[`layout-${currentSlide.layout}`, form.theme, {'crop-enabled':cropSupported, 'crop-dragging':isCropping}]" :style="artboardStyle"
+                @pointerdown="startImageDrag" @pointermove="moveImageDrag" @pointerup="endImageDrag" @pointercancel="endImageDrag">
                 <template v-if="currentSlide.layout==='cover'">
                   <div class="absolute inset-0 overflow-hidden">
-                    <img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌封面照片" class="image-fill" />
+                    <img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌封面照片" class="image-fill crop-image" :style="imageStyle(currentSlide)" draggable="false" />
                   </div>
                   <div class="absolute inset-0" :class="form.coverText==='dark' ? 'cover-overlay-dark' : 'cover-overlay-light'"></div>
                   <div class="absolute inset-0 z-10" :class="form.coverText==='dark' ? 'cover-ui-dark' : 'cover-ui-light'">
@@ -640,7 +667,7 @@
                     <p class="art-copy mt-12 whitespace-pre-line">{{ currentSlide.body }}</p>
                   </div>
                   <div class="absolute bottom-[76px] right-[66px] h-[570px] w-[350px] overflow-hidden" :class="form.theme==='notes' ? 'rotate-[2deg] shadow-[18px_20px_0_rgba(32,35,31,.10)]' : ''">
-                    <img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌照片" class="image-fill" />
+                    <img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌照片" class="image-fill crop-image" :style="imageStyle(currentSlide)" draggable="false" />
                   </div>
                   <div class="absolute bottom-[64px] left-[72px] art-small">{{ currentSlide.footer }}</div>
                 </template>
@@ -659,7 +686,7 @@
 
                 <template v-else-if="currentSlide.layout==='details'">
                   <div class="absolute left-0 top-0 h-[760px] w-full overflow-hidden">
-                    <img :src="mediaSource(currentSlide.mediaIndex)" alt="設計細節" class="image-fill" />
+                    <img :src="mediaSource(currentSlide.mediaIndex)" alt="設計細節" class="image-fill crop-image" :style="imageStyle(currentSlide)" draggable="false" />
                   </div>
                   <div class="absolute left-[68px] top-[60px] rounded-full bg-[var(--paper)]/90 px-6 py-3 art-small">{{ currentSlide.kicker }}</div>
                   <div class="absolute left-[68px] right-[68px] top-[815px] grid grid-cols-[1.05fr_.95fr] gap-[64px]">
@@ -671,7 +698,7 @@
 
                 <template v-else-if="currentSlide.layout==='curation'">
                   <div class="absolute left-[66px] top-[62px] h-[500px] w-[430px] overflow-hidden" :class="form.theme==='notes' ? '-rotate-[2deg] shadow-[16px_18px_0_rgba(32,35,31,.12)]' : ''">
-                    <img :src="mediaSource(currentSlide.mediaIndex)" alt="SOI 編輯選物" class="image-fill" />
+                    <img :src="mediaSource(currentSlide.mediaIndex)" alt="SOI 編輯選物" class="image-fill crop-image" :style="imageStyle(currentSlide)" draggable="false" />
                   </div>
                   <div class="absolute right-[72px] top-[66px] text-right art-small">EDITOR'S NOTE</div>
                   <div class="absolute bottom-[120px] left-[70px] right-[70px]">
@@ -701,7 +728,7 @@
                 </template>
 
                 <template v-else-if="currentSlide.layout==='split'">
-                  <div class="absolute left-0 top-0 h-full w-[46%] overflow-hidden"><img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌情境" class="image-fill" /></div>
+                  <div class="absolute left-0 top-0 h-full w-[46%] overflow-hidden"><img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌情境" class="image-fill crop-image" :style="imageStyle(currentSlide)" draggable="false" /></div>
                   <div class="absolute left-[52%] right-[68px] top-[72px] art-small flex justify-between"><span>{{ currentSlide.kicker }}</span><span>SOI EDIT</span></div>
                   <div class="absolute left-[52%] right-[74px] top-[280px]">
                     <h3 class="art-serif whitespace-pre-line text-[78px] leading-[1.05]" :style="{fontSize:(currentSlide.titleFontSize || 78)+'px'}">{{ currentSlide.title }}</h3>
@@ -711,7 +738,7 @@
                 </template>
 
                 <template v-else-if="currentSlide.layout==='closing'">
-                  <div class="absolute inset-0 overflow-hidden image-wash"><img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌結尾" class="image-fill" /></div>
+                  <div class="absolute inset-0 overflow-hidden image-wash"><img :src="mediaSource(currentSlide.mediaIndex)" alt="品牌結尾" class="image-fill crop-image" :style="imageStyle(currentSlide)" draggable="false" /></div>
                   <div class="absolute inset-0 z-10 flex flex-col justify-between p-[70px] text-white">
                     <div class="flex justify-between art-small"><span>{{ currentSlide.kicker }}</span><span>FOUND BY SOI</span></div>
                     <div>
@@ -833,6 +860,7 @@
         const currentIndex = ref(0);
         const dragSlideIndex = ref(null);
         const dragging = ref(false);
+        const isCropping = ref(false);
         const exporting = ref(false);
         const exportMessage = ref('準備圖片中…');
         const toast = ref('');
@@ -842,6 +870,7 @@
         const previewScale = ref(.5);
         let toastTimer;
         let saveTimer;
+        let cropDrag = null;
 
         const makeDemoSvg = (start, end, shape, label) => {
           const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1500" viewBox="0 0 1200 1500"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${start}"/><stop offset="1" stop-color="${end}"/></linearGradient><filter id="n"><feTurbulence baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .05"/></feComponentTransfer></filter></defs><rect width="1200" height="1500" fill="url(#g)"/><rect width="1200" height="1500" filter="url(#n)" opacity=".55"/><${shape}/><text x="70" y="1425" fill="rgba(255,255,255,.68)" font-family="Arial" font-size="22" letter-spacing="8">${label}</text></svg>`;
@@ -862,6 +891,7 @@
           transform: `scale(${previewScale.value})`
         }));
         const currentSlide = computed(() => slides.value[currentIndex.value] || { layout:'cta', kicker:'', title:'', body:'', footer:'', mediaIndex:0 });
+        const cropSupported = computed(() => ['cover','intro','details','curation','split','closing'].includes(currentSlide.value.layout));
         const coverFontSize = computed(() => {
           const lines = String(currentSlide.value.title || '').split('\n');
           const length = Math.max(...lines.map(line => [...line].length), 0);
@@ -1155,6 +1185,63 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，內容
           return list[Math.abs(Number(index || 0)) % list.length];
         }
 
+        function imageStyle(slide) {
+          const x = Math.min(100, Math.max(0, Number(slide?.imageX ?? 50)));
+          const y = Math.min(100, Math.max(0, Number(slide?.imageY ?? 50)));
+          const zoom = Math.min(2.2, Math.max(1, Number(slide?.imageZoom || 1)));
+          return {
+            objectPosition: `${x}% ${y}%`,
+            transform: `scale(${zoom})`,
+            transformOrigin: `${x}% ${y}%`
+          };
+        }
+
+        function resetImageCrop() {
+          currentSlide.value.imageX = 50;
+          currentSlide.value.imageY = 50;
+          currentSlide.value.imageZoom = 1;
+          scheduleSave();
+          showToast('照片已置中');
+        }
+
+        function startImageDrag(event) {
+          if (!cropSupported.value || (event.pointerType === 'mouse' && event.button !== 0)) return;
+          const slide = currentSlide.value;
+          cropDrag = {
+            slideId: slide.id,
+            pointerId: event.pointerId,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            imageX: Number(slide.imageX ?? 50),
+            imageY: Number(slide.imageY ?? 50)
+          };
+          isCropping.value = true;
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+          event.preventDefault();
+        }
+
+        function moveImageDrag(event) {
+          if (!cropDrag || cropDrag.pointerId !== event.pointerId) return;
+          const slide = slides.value.find(item => item.id === cropDrag.slideId);
+          const rect = artboardShell.value?.getBoundingClientRect();
+          if (!slide || !rect?.width || !rect?.height) return;
+          const zoom = Math.max(1, Number(slide.imageZoom || 1));
+          const dx = (event.clientX - cropDrag.clientX) * 100 / rect.width / zoom;
+          const dy = (event.clientY - cropDrag.clientY) * 100 / rect.height / zoom;
+          slide.imageX = Math.round(Math.min(100, Math.max(0, cropDrag.imageX - dx)));
+          slide.imageY = Math.round(Math.min(100, Math.max(0, cropDrag.imageY - dy)));
+          scheduleSave();
+          event.preventDefault();
+        }
+
+        function endImageDrag(event) {
+          if (!cropDrag || cropDrag.pointerId !== event.pointerId) return;
+          if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+          cropDrag = null;
+          isCropping.value = false;
+          scheduleSave();
+        }
+
         async function compressImage(file) {
           return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -1329,9 +1416,9 @@ carousel 請提供 ${Math.max(1, Number(form.slideCount || 7) - 2)} 頁，內容
         });
 
         return {
-          steps,themes,palettes,form,activeStep,aiInput,aiResult,aiError,promptCopied,images,slides,currentIndex,dragSlideIndex,dragging,exporting,exportMessage,toast,saveStatus,artboard,artboardShell,
-          selectedPalette,artboardStyle,currentSlide,coverFontSize,currentDefaultTitleFontSize,cityShort,availableMedia,productItems,researchPrompt,
-          generateSlides,updateSeries,syncCoverText,generateCaption,copyCaption,copyResearchPrompt,applyAIResult,mediaSource,handleFiles,onDrop,removeImage,makeCover,moveSlide,dropSlide,duplicateSlide,deleteSlide,downloadCurrent,downloadAll,resetProject,scheduleSave
+          steps,themes,palettes,form,activeStep,aiInput,aiResult,aiError,promptCopied,images,slides,currentIndex,dragSlideIndex,dragging,isCropping,exporting,exportMessage,toast,saveStatus,artboard,artboardShell,
+          selectedPalette,artboardStyle,currentSlide,cropSupported,coverFontSize,currentDefaultTitleFontSize,cityShort,availableMedia,productItems,researchPrompt,
+          generateSlides,updateSeries,syncCoverText,generateCaption,copyCaption,copyResearchPrompt,applyAIResult,mediaSource,imageStyle,resetImageCrop,startImageDrag,moveImageDrag,endImageDrag,handleFiles,onDrop,removeImage,makeCover,moveSlide,dropSlide,duplicateSlide,deleteSlide,downloadCurrent,downloadAll,resetProject,scheduleSave
         };
       }
     }).mount('#app');
